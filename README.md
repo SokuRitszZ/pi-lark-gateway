@@ -27,6 +27,7 @@ npm run verify
 ## 安装、部署和发布
 
 - [干净环境安装](docs/INSTALL.md)：Node/Pi 模型授权、扫码与手动接入、平台权限和首次验收。
+- [飞书应用权限清单](docs/PERMISSIONS.md)：基础、增强及按需敏感权限与事件/回调。安装前可运行 `pi-lark-gateway setup --permissions` 查看，或用 `--permissions-json` 导出推荐应用权限；扫码与手动引导完成后会显示当前应用的权限链接。
 - [运维手册](docs/OPERATIONS.md)：Linux systemd / macOS LaunchAgent、日志轮转、本地诊断、备份恢复、升级回滚。
 - [发布流程](docs/RELEASING.md)：release/x.y.z 分支自动 beta、PR 合入 main 自动正式版、npm OIDC 和失败重试。
 - [变更记录](CHANGELOG.md) · [安全说明](SECURITY.md) · [许可状态](LICENSE)

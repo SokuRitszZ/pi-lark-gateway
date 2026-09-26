@@ -12,6 +12,7 @@
 - Reusable test matrix, exact-artifact smoke/verification, opt-in npm OIDC publication and draft-to-public GitHub Releases with immutable assets and integrity-checked retries.
 
 ### Changed
+- Document audited Feishu application permissions and required event/callback setup; show the same checklist and app-specific permissions link after QR/manual onboarding, with offline `setup --permissions` and `--permissions-json` commands.
 - Prefer native CardKit typewriter updates for assistant text in card mode, with per-card sequencing/throttling, stream finalization and automatic same-message fallback to legacy card updates; leave tool details immediate and normal replies unchanged.
 - Recognize a leading Feishu `/restart` command at gateway ingress for owner/admins, accepting trailing remarks and plain rich-text messages without any model fallback, respecting access policy and waiting for confirmation plus all accepted output/cleanup before the deferred restart.
 - Add `restart` CLI scheduling: wait for all accepted replies, card updates and cleanup before a delayed managed restart; coalesce requests and never force-kill the active response.

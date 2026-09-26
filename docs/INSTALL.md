@@ -63,6 +63,17 @@ npm 安装用户可使用 `npm exec --package=@earendil-works/pi-coding-agent@0.
 
 ## 3. 创建/接入飞书应用
 
+### 先查看权限要求（离线，不授权）
+
+```bash
+npm run setup -- --permissions
+# 推荐权限 JSON（不含非 @ 群消息敏感权限）：
+npm run --silent setup -- --permissions-json
+# npm 全局安装对应：pi-lark-gateway setup --permissions / --permissions-json
+```
+
+详见 [飞书应用权限清单](PERMISSIONS.md)：基础 3 项、增强 3 项、按需敏感权限、事件/回调及官方依据。以上命令不联网、不读取或覆盖配置，现有用户也可运行。扫码和手动配置完成后都会再次显示检查清单及当前应用的权限管理直达链接；程序不代为申请权限。
+
 ### 扫码创建
 
 ```bash
@@ -86,8 +97,9 @@ npm run setup -- --manual
 在开放平台按实际应用权限说明完成：
 - 启用机器人；事件订阅使用长连接，订阅 `im.message.receive_v1`。
 - 在**回调配置**中另加 `card.action.trigger` 并使用长连接；否则审批/停止/打断按钮无效。
-- 卡片原生打字机需额外开通 `cardkit:card:write`（创建与更新卡片）；未开通或原生接口失败时自动使用原有整卡更新，不影响基本回复。程序不会代为修改权限；普通文本回复模式不使用此能力。
-- 授予接收所需消息、以机器人发送/编辑消息、表情回复所需权限。需要非 @ 群消息时按控制台申请 `im:message.group_msg`，不是默认必需权限。
+- 基础应用权限：`im:message.p2p_msg:readonly`（私聊接收）、`im:message.group_at_msg:readonly`（群 @ 接收）、`im:message:send_as_bot`（发送/回复/编辑文本及卡片）。仅做单一聊天类型时可省略另一接收权限。
+- 推荐增强权限：`im:message.reactions:write_only`（添加/撤回表情）、`im:chat:read`（审批群名称）、`cardkit:card:write`（原生打字机）。缺少时分别省略表情、显示群 ID、降级整卡更新，不阻断基础回复。
+- 仅接收非 @ 群消息时申请敏感权限 `im:message.group_msg`，再显式配置群触发规则。不要为启动网关额外申请通讯录、云文档或云盘权限；无需重复添加 `im:message:update`，上述发送权限已覆盖当前编辑 API。
 - 发布应用版本、完成租户审批、配置可用范围；将机器人加入测试群，确认能向 owner 发私聊。
 - 扫码未返回 owner 时，先在本地补齐 `access.owner`，否则陌生用户无法申请审批。
 
