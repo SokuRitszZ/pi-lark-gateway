@@ -32,6 +32,8 @@ try {
   check(['setup', '--help'], 0, /默认白名单审批/);
   check(['doctor', '--help'], 0, /不联网/);
   check(['backup', '--help'], 0, /必须先停服务/);
+  check(['restart', '--help'], 0, /登记延迟重启任务/);
+  check(['restart'], 1, /restart_request_failed/);
   check(['setup', '--domain', 'lark'], 1, /仅支持国内飞书/);
   check(['start'], 1, /startup_failed_check_configuration_and_network/);
   console.log(`npm tarball install and CLI smoke passed (${process.version}); no npm publication, live model or Feishu calls.`);

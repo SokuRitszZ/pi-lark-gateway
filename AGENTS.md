@@ -8,3 +8,4 @@
 - Run `npm test`, `npm run check`, and `npm run setup -- --help` after structural changes.
 - Never print App Secrets, raw SDK errors, message bodies, or model credentials.
 - Preserve config/session/state file paths during structural refactors.
+- For an authorized gateway restart, use `npm run restart` (or `pi-lark-gateway restart`) to schedule it after replies and cleanup finish. Never run an immediate `launchctl kickstart -k`, service restart, or kill from the active response. If the running old version has no restart endpoint, report that an initial idle upgrade restart is required; do not silently force it.

@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+export { superviseCommand } from './supervise.js';
 
 // AC-only assertion: displays may sleep; battery operation is not kept awake.
 export function keepAwakeOnPower(log) {

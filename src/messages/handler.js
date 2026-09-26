@@ -54,6 +54,7 @@ export function createMessageHandler({ answer, reply, beginResponse, react = asy
       void job.finally(() => { if (queues.get(m.key) === job) queues.delete(m.key); });
       // Return immediately: platform expects event acknowledgement within 3 seconds.
     },
+    isIdle() { return queues.size === 0; },
     async drain() { closed = true; await Promise.all(queues.values()); },
   };
 }

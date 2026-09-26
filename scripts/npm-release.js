@@ -41,9 +41,9 @@ export async function packNpm({ root, outputDir, allowUnversioned = false, publi
     const result = spawnSync('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', packed], { cwd: stage, env, encoding: 'utf8', timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
     if (result.error || result.status !== 0) throw new Error('npm_pack_failed');
     const [info] = JSON.parse(result.stdout);
-    const required = ['package.json', 'npm-shrinkwrap.json', 'npm-release.json', 'bin/pi-lark-gateway.js', 'src/index.js', 'scripts/doctor.js', 'scripts/backup.js'];
+    const required = ['package.json', 'npm-shrinkwrap.json', 'npm-release.json', 'bin/pi-lark-gateway.js', 'src/index.js', 'scripts/doctor.js', 'scripts/backup.js', 'scripts/restart.js'];
     const files = info.files.map(file => file.path);
-    if (required.some(file => !files.includes(file)) || files.some(file => !/^(?:bin\/|src\/|docs\/|deploy\/|scripts\/(?:doctor|backup)\.js$|(?:package\.json|npm-shrinkwrap\.json|npm-release\.json|README\.md|LICENSE|CHANGELOG\.md|SECURITY\.md)$)/.test(file))) throw new Error('npm_unexpected_package_contents');
+    if (required.some(file => !files.includes(file)) || files.some(file => !/^(?:bin\/|src\/|docs\/|deploy\/|scripts\/(?:doctor|backup|restart)\.js$|(?:package\.json|npm-shrinkwrap\.json|npm-release\.json|README\.md|LICENSE|CHANGELOG\.md|SECURITY\.md)$)/.test(file))) throw new Error('npm_unexpected_package_contents');
     await fs.mkdir(outputDir, { recursive: true });
     const output = path.join(outputDir, info.filename);
     await fs.copyFile(path.join(packed, info.filename), output, fs.constants.COPYFILE_EXCL);

@@ -8,9 +8,10 @@ import { createAgent } from '../agent/index.js';
 import { createConnection, createMetadata, createCards, createReplies, createReactions } from '../lark/index.js';
 import { createRouter } from './route.js';
 import { createControls, canControlResponse } from '../controls/index.js';
+import { createRestartControl } from '../restart/index.js';
 
 // Composition root only: concrete feature implementations live in their own directories.
-export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || defaultConfigPath(), log } = {}) {
+export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || defaultConfigPath(), log, onRestart } = {}) {
   await migrateConfig(configPath);
   const initial = await loadConfig(configPath);
   const config = initial.config;
@@ -48,17 +49,29 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
     getChatInfo: metadata.getChatInfo, ...createCards(connection.client),
   });
   const route = createRouter({ getState, approvals, handler, threads, reply: replies.reply, log });
-  await connection.start({
-    'im.message.receive_v1': route,
-    'card.action.trigger': event => event?.action?.value?.kind === 'response_control'
-      ? controls.handle(event) : approvals.handle(event),
-  });
+  let restartControl, ready = false;
+  try {
+    if (onRestart) restartControl = await createRestartControl({ base, isIdle: () => ready && handler.isIdle(), restart: onRestart, log });
+    await connection.start({
+      'im.message.receive_v1': route,
+      'card.action.trigger': event => event?.action?.value?.kind === 'response_control'
+        ? controls.handle(event) : approvals.handle(event),
+    });
+  } catch {
+    settings.close(); agent.abort();
+    await Promise.allSettled([restartControl?.close(), connection.close(), handler.drain(), approvals.drain(), agent.dispose()]);
+    throw new Error('gateway_start_failed');
+  }
   log('gateway_started_configured_access');
+  ready = true;
   return {
     async close() {
+      // Close message admission synchronously before any shutdown await.
+      const drained = handler.drain();
       settings.close(); agent.abort();
+      await restartControl?.close();
       await connection.close();
-      await handler.drain();
+      await drained;
       await approvals.drain();
       await agent.dispose();
     },

@@ -35,6 +35,8 @@ npm run verify
 
 部署模板位于 `deploy/`，需按目标主机填写绝对路径，**不会自动安装/重启**。同一 App ID 只运行一个实例，避免与手动 `npm start` 并行。
 
+需要重启时用 `pi-lark-gateway restart`（源码：`npm run restart`）。命令只登记定时任务并返回，等待所有已接收回复（含排队任务）、卡片/续卡或普通消息发送、进度收尾及表情撤回结束，再在空闲延迟后退出并由启动器拉起；默认延迟 1 秒，可用 `--delay-ms 3000` 调整。不要在正在回复的工具调用中直接 kill 或 `launchctl kickstart -k`。首次升级旧进程须在对话结束后重启一次才能启用；详见 [运维说明](docs/OPERATIONS.md#等待输出完成后重启)。
+
 ## 代码结构
 
 每个 feature 独立目录，`index.js` 为公开入口；跨 feature 通过入口导入。编排文件不承载具体 SDK/存储实现。

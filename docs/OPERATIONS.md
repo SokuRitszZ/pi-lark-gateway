@@ -6,7 +6,7 @@
 
 使用固定的 Node 可执行路径和版本目录；通过 `command -v node` 获取路径，不要假设 systemd/launchd 会加载 nvm 的 shell 配置。推荐版本目录 + `current` 符号链接，例如 `~/.local/opt/pi-lark-gateway/current`。升级 Node 后需检查服务中的绝对路径。
 
-npm 安装时，`@APP_DIR@` 使用 `npm root -g` 下的 `pi-lark-gateway` 绝对路径，模板可从该目录的 `deploy/` 复制；`@NODE@` 仍须与该安装使用的 Node 匹配。日常命令改用 `pi-lark-gateway doctor/setup/start/backup`，无需进入全局包目录。切换 nvm Node 版本可能改变全局包路径，必须同步服务配置。
+npm 安装时，`@APP_DIR@` 使用 `npm root -g` 下的 `pi-lark-gateway` 绝对路径，模板可从该目录的 `deploy/` 复制；`@NODE@` 仍须与该安装使用的 Node 匹配。日常命令改用 `pi-lark-gateway doctor/setup/start/backup/restart`，无需进入全局包目录。切换 nvm Node 版本可能改变全局包路径，必须同步服务配置。
 
 ## Linux：systemd 用户服务
 
@@ -43,6 +43,23 @@ launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/dev.pi.lark-gateway.plist
 模板通过 `PI_LARK_KEEP_AWAKE=ac` 接电时防止自动睡眠；允许屏幕熄灭，不保证电池、合盖、手动睡眠或注销时可用。真正全天候部署用不休眠服务器。代理地址不预设；代理本身也需要持续运行。
 
 文件日志需轮转：可用已安装的 logrotate，复制 `deploy/logrotate.conf` 到私有运维目录并替换 `@HOME@`，使用用户 cron/LaunchAgent **每小时**执行 `logrotate --state <私有状态文件> <配置文件>`，首次加 `--debug` 检查。示例保留 7 份、10 MiB 触发轮转。`copytruncate` 在极短复制窗口内可能丢日志，不用于审计级保证；模板不会自动装 logrotate 或定时器。
+
+## 等待输出完成后重启
+
+```bash
+pi-lark-gateway restart --delay-ms 1000
+# 源码目录：
+npm run restart -- --delay-ms 1000
+# 自定义配置：加 --config /绝对路径/config.json，或使用 PI_LARK_CONFIG
+```
+
+此命令向运行中的网关登记一个定时任务，收到确认即返回，**不会等待重启完成而卡住当前工具调用**。默认空闲延迟为 1000ms，可设为 250–60000ms。网关周期检查所有已接收消息（包括其他会话及排队消息），等最终卡片/续卡/普通回复发送和进度清理、表情撤回操作结束才计时；触发前再检查空闲，发现忙碌就继续等待。不会因等候太久而强制中断输出。重复请求合并为同一任务，沿用第一次的延迟。
+
+重启触发时先同步停止接收新消息，再关闭连接、清理资源，以专用退出码 75 退出。`pi-lark-gateway start` / `npm start` 的启动器、项目提供的 systemd `Restart=on-failure` 与 launchd `SuccessfulExit=false` 模板会重新拉起；直接运行 `node src/index.js` 且无外部管理器则只会退出，不保证自行启动。普通 SIGINT/SIGTERM 保留原维护停机行为，不能替代此延迟重启命令。
+
+控制通道仅支持 macOS/Linux，位于 `/tmp/pi-lark-gateway-<uid>/<应用状态路径哈希>.sock`；目录 700、socket 600，仅同一系统用户访问，不开放 TCP 或飞书远程管理入口，不写入凭据或对话内容。任务只存在进程内存中，异常退出不在新进程重复触发；陈旧 socket 会在下次启动安全检查后清理，不纳入状态备份。
+
+**首次升级限制：** 旧进程尚未加载新代码，没有控制通道；命令会明确失败，不会退回强杀。须在当前对话输出结束后的空闲维护窗口，先由操作者完成一次升级重启，此后统一使用上述命令。收到“任务已登记”不等于已经重启成功；应另查新进程和 `websocket_<state>`，再发测试消息验收。
 
 ## 观察与故障排查
 

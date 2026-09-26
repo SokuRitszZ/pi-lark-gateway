@@ -12,6 +12,7 @@
 - Reusable test matrix, exact-artifact smoke/verification, opt-in npm OIDC publication and draft-to-public GitHub Releases with immutable assets and integrity-checked retries.
 
 ### Changed
+- Add `restart` CLI scheduling: wait for all accepted replies, card updates and cleanup before a delayed managed restart; coalesce requests and never force-kill the active response.
 - Collapse adjacent same-kind card tool calls as `tool ×N`, without parentheses; only the newest call shows a sanitized operation preview capped at 100 Unicode characters.
 - Card replies retain streamed assistant commentary, chronological tool statuses and final text without duplicating the SDK's aggregate answer. Live overflow reuses continuation cards; stopped/error cards preserve partial progress. Normal text reply mode is unchanged.
 - Release workflow directly calls the SHA-pinned SokuRitszZ/npm-release-action for planning, packaging and publication; gateway-specific matrix tests and exact-tarball CLI smoke remain in this repository. Shared artifacts use bundle.json, SHA256SUMS and a source/ archive root.

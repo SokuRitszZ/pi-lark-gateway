@@ -19,7 +19,7 @@ pi-lark-gateway --help
 
 不需要 clone 仓库；npm 包包含 `pi-lark-gateway` CLI 和锁定依赖的 `npm-shrinkwrap.json`，不包含源码测试/发布脚本。当前版本未上传前，不能把上述安装当成已经可用的 registry 版本。
 
-之后仍须完成下文的模型授权和飞书配置。npm 用户将文中的 `npm run setup` / `npm run doctor` / `npm start` / `npm run backup` 分别替换为 `pi-lark-gateway setup` / `doctor` / `start` / `backup`，**不需要 npm 的 `--` 参数分隔符**。例如 `pi-lark-gateway setup --manual`。
+之后仍须完成下文的模型授权和飞书配置。npm 用户将文中的 `npm run setup` / `npm run doctor` / `npm start` / `npm run backup` / `npm run restart` 分别替换为 `pi-lark-gateway setup` / `doctor` / `start` / `backup` / `restart`，**不需要 npm 的 `--` 参数分隔符**。例如 `pi-lark-gateway setup --manual`。
 
 ### 源码包安装
 
