@@ -24,6 +24,9 @@ test('images update the existing primary card and survive subsequent text and fi
   await response.finish('图片说明');
   assert.equal(f.sends(), 1); assert.match(f.cards.get('m1').body.elements[0].content, /图片说明/);
   assert.equal(images(f.cards.get('m1')).length, 1); assert.equal(images(f.cards.get('m1'))[0].scale_type, 'fit_horizontal');
+  assert.equal(images(f.cards.get('m1'))[0].compact_width, true);
+  assert.equal(images(f.cards.get('m1'))[0].preview, true);
+  assert.equal(f.cards.get('m1').config.width_mode, 'default');
   await assert.rejects(response.appendImage({ key: 'img_late' }), { code: 'MEDIA_SEND_DENIED' });
 });
 test('concurrent image additions are serialized and terminal error retains images', async () => {
@@ -85,6 +88,7 @@ test('pagination budgets images on the primary card only and keeps markdown firs
   assert.ok(pages.length > 1);
   for (const [index, card] of pages.entries()) {
     assert.equal(card.body.elements[0].tag, 'markdown');
+    assert.equal(card.config.width_mode, 'default');
     assert.equal(images(card).length, index ? 0 : 1);
     assert.ok(Buffer.byteLength(JSON.stringify({ msg_type: 'interactive', content: JSON.stringify(card) })) <= 28 * 1024);
   }

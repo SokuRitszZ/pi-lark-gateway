@@ -24,7 +24,7 @@ test('markdown source goes to markdown component, title stays plain text', async
   await r.finish(content);
   assert.equal(card.schema, '2.0');
   assert.equal(card.elements, undefined);
-  assert.deepEqual(card.config, { width_mode: 'fill', update_multi: true });
+  assert.deepEqual(card.config, { width_mode: 'default', update_multi: true });
   assert.deepEqual(card.body.elements[0], { tag: 'markdown', content });
   assert.equal(card.header.title.tag, 'plain_text');
 });
