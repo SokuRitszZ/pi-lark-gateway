@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { releaseMetadata, verifyReleaseBundle } from './ci-release.js';
+import { workflowReleaseMetadata, verifyReleaseBundle } from './ci-release.js';
 
 export async function publishGitHubBundle(bundle, { github, owner, repo }) {
   const { metadata, assets } = bundle;
@@ -36,7 +36,8 @@ export async function publishGitHubBundle(bundle, { github, owner, repo }) {
 }
 
 export async function runGitHubRelease({ github, context, root = process.cwd() }) {
-  const metadata = await releaseMetadata({ root, tag: process.env.RELEASE_TAG, repository: `${context.repo.owner}/${context.repo.repo}` });
+  const metadata = await workflowReleaseMetadata({ root });
+  if (metadata.repository !== `${context.repo.owner}/${context.repo.repo}`) throw new Error('github_release_repository_mismatch');
   const bundle = await verifyReleaseBundle(root, metadata, path.join(root, 'dist'));
   await publishGitHubBundle(bundle, { github, ...context.repo });
 }

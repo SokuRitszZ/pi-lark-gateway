@@ -31,13 +31,18 @@ then update local files and verify before restarting. Deleting logs is not remed
 
 ## Automated publication
 
-Protect release tags and workflow changes. Once NPM_PUBLISH_ENABLED=true, trusted v*
-tags authorize external publication. Configure npm's trusted publisher for release.yml
-and the npm-publish GitHub environment; tests/builds are read-only, only the npm job
+Protect main, release/* branches and workflow changes. Once NPM_PUBLISH_ENABLED=true,
+trusted release/x.y.z pushes authorize beta publication; merging a same-repository
+release PR into main authorizes the stable version. Closed-unmerged or forked PRs do
+not publish. Configure npm's trusted publisher for release.yml and the npm-publish
+GitHub environment (allow release/* and main branches); tests/builds are read-only, only the npm job
 gets id-token:write, and only the final GitHub Release job gets contents:write.
 Do not add long-lived npm tokens as a silent fallback. Publication jobs download and
 verify the already-tested artifact rather than executing dependency installation or
-rebuilding it. Existing registry versions and Release assets are never overwritten.
+rebuilding it. Version stamping only changes staged manifests, not the source branch;
+artifacts retain the actual push/merge commit identity. Existing registry versions and
+Release assets are never overwritten. Automatically generated v* tags are release
+records, not workflow triggers.
 
 ## Updates
 

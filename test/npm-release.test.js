@@ -8,7 +8,8 @@ import { spawnSync } from 'node:child_process';
 import { packNpm, npmTag, validatePublishIntent } from '../scripts/npm-release.js';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-test('prereleases go to next, stable to latest; publication requires explicit confirmation', () => {
+test('beta/rc/stable use beta/next/latest; local publication requires explicit confirmation', () => {
+  assert.equal(npmTag('1.0.0-beta.42'), 'beta');
   assert.equal(npmTag('1.0.0-rc.1'), 'next'); assert.equal(npmTag('1.0.0'), 'latest');
   assert.throws(() => validatePublishIntent({ publish: true }));
   assert.throws(() => validatePublishIntent({ publish: true, confirmPublication: true, allowUnversioned: true }));

@@ -7,8 +7,9 @@
 - Idle session archiving after 30 days: isolated summaries, private persistence, cleanup recovery, and summary-based continuation.
 - Manual Feishu setup with hidden secret input, local doctor, private stopped-service backups, and clean-home installation smoke test.
 - CI matrix, checked source archive packaging with lockfile, file hashes and source commit; installation, operations, release and security documentation.
-- npm runtime distribution with executable pi-lark-gateway CLI, generated shrinkwrap, tarball installation smoke, explicit local publication confirmation and automatic next/latest selection.
-- Tag-triggered GitHub Actions release pipeline: reusable test matrix, exact-artifact smoke/verification, opt-in npm OIDC publication and draft-to-public GitHub Releases with immutable assets and integrity-checked retries.
+- npm runtime distribution with executable pi-lark-gateway CLI, generated shrinkwrap, tarball installation smoke, explicit local publication confirmation and automatic beta/next/latest selection.
+- Branch-driven GitHub Actions releases: each release/x.y.z push generates x.y.z-beta.<run>.<attempt> on beta; a same-repository release PR merged into main publishes x.y.z on latest. Version manifests are stamped in staging without source commits.
+- Reusable test matrix, exact-artifact smoke/verification, opt-in npm OIDC publication and draft-to-public GitHub Releases with immutable assets and integrity-checked retries.
 
 ### Changed
 - New installations require owner approval for unknown users; groups require a mention; tools default to disabled.

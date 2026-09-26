@@ -2,7 +2,7 @@
 
 ## 支持范围
 
-国内飞书；单机器人、单网关进程；macOS 或 Linux。Node.js **>=22.21.0**，推荐 Node 24 LTS；npm 随 Node 安装。系统需有 `tar`。不承诺国际版 Lark 或 Windows。源码候选版为 `1.0.0-rc.1`，不等于已发布 GA。
+国内飞书；单机器人、单网关进程；macOS 或 Linux。Node.js **>=22.21.0**，推荐 Node 24 LTS；npm 随 Node 安装。系统需有 `tar`。不承诺国际版 Lark 或 Windows。源码开发版本为 `1.0.0-rc.1`，实际 CI 发布版本由 release 分支名决定，不等于已发布 GA。
 
 使用专用普通 OS 用户，不要以 root 运行。网关访问该用户的 `HOME`；常驻服务必须使用同一用户。需要外网访问飞书及所选模型服务，代理按实际环境配置，不预设端口。
 
@@ -11,7 +11,7 @@
 ### npm 安装（对应版本正式上传后）
 
 ```bash
-npm install -g pi-lark-gateway@next --ignore-scripts  # 候选版
+npm install -g pi-lark-gateway@beta --ignore-scripts  # release 分支候选版
 # 稳定版使用 @latest，生产建议固定 @具体版本
 pi-lark-gateway --version
 pi-lark-gateway --help

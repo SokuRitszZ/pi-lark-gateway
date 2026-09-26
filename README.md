@@ -5,7 +5,7 @@
 npm 发布后可直接安装（当前候选版尚未上传）：
 
 ```bash
-npm install -g pi-lark-gateway@next --ignore-scripts  # 候选版；正式版用 @latest 或固定版本
+npm install -g pi-lark-gateway@beta --ignore-scripts  # 分支候选版；正式版用 @latest 或固定版本
 pi-lark-gateway setup
 pi-lark-gateway doctor
 pi-lark-gateway start
@@ -28,10 +28,10 @@ npm run verify
 
 - [干净环境安装](docs/INSTALL.md)：Node/Pi 模型授权、扫码与手动接入、平台权限和首次验收。
 - [运维手册](docs/OPERATIONS.md)：Linux systemd / macOS LaunchAgent、日志轮转、本地诊断、备份恢复、升级回滚。
-- [发布流程](docs/RELEASING.md)：标签触发的 GitHub Actions 流水线、npm OIDC、双渠道产物和失败重试。
+- [发布流程](docs/RELEASING.md)：release/x.y.z 分支自动 beta、PR 合入 main 自动正式版、npm OIDC 和失败重试。
 - [变更记录](CHANGELOG.md) · [安全说明](SECURITY.md) · [许可状态](LICENSE)
 
-当前是 `1.0.0-rc.1` 候选版。支持 npm 运行时包（带 shrinkwrap）与带 lockfile 的源码包双渠道分发；配置可信发布者并开启仓库发布开关后，推送版本标签即可由 GitHub Actions 自动测试、发布 npm 和 GitHub Release；本地不会自动推送标签或重启服务。许可证暂为 `UNLICENSED`，不是开源授权。新机器必须先按安装文档配置 Pi 模型授权，单跑 setup 不会获得模型凭据。
+当前源码开发版本为 `1.0.0-rc.1`，CI 的实际发布版本由 `release/x.y.z` 分支名决定。支持 npm 运行时包（带 shrinkwrap）与源码包双渠道分发；配置可信发布者并开启发布开关后，release 分支每次 push 自动发新的 beta，PR 合入 main 自动发正式版。CI 同步修改产物的 package/lockfile，不向源码分支回写版本提交，也不会部署或重启服务。许可证暂为 `UNLICENSED`，不是开源授权。新机器必须先按安装文档配置 Pi 模型授权，单跑 setup 不会获得模型凭据。
 
 部署模板位于 `deploy/`，需按目标主机填写绝对路径，**不会自动安装/重启**。同一 App ID 只运行一个实例，避免与手动 `npm start` 并行。
 

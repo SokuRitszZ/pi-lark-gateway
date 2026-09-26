@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { releaseMetadata, verifyReleaseBundle } from './ci-release.js';
+import { workflowReleaseMetadata, verifyReleaseBundle } from './ci-release.js';
 
 const REGISTRY = 'https://registry.npmjs.org/';
 const parse = text => { try { return JSON.parse(text); } catch { return null; } };
@@ -37,7 +37,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
   (async () => {
     if (process.env.GITHUB_ACTIONS !== 'true' || !process.env.ACTIONS_ID_TOKEN_REQUEST_URL || process.env.NPM_PUBLISH_ENABLED !== 'true') throw new Error('npm_trusted_publishing_not_enabled');
     const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-    const metadata = await releaseMetadata({ root, tag: process.env.RELEASE_TAG, repository: process.env.GITHUB_REPOSITORY });
+    const metadata = await workflowReleaseMetadata({ root });
     const bundle = await verifyReleaseBundle(root, metadata);
     await publishNpmBundle(bundle, { log: console.log, run: args => spawnSync('npm', args, { cwd: root, encoding: 'utf8', timeout: 120000, maxBuffer: 8 * 1024 * 1024 }) });
   })().catch(() => {

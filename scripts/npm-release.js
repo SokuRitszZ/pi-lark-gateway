@@ -6,24 +6,22 @@ import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { copyReleaseSource } from './release.js';
+import { releaseManifests } from './release-version.js';
 
 const REGISTRY = 'https://registry.npmjs.org/';
-export const npmTag = version => version.includes('-') ? 'next' : 'latest';
+export const npmTag = version => version.includes('-beta.') ? 'beta' : version.includes('-') ? 'next' : 'latest';
 const git = (root, args) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
 export function validatePublishIntent({ publish, confirmPublication, allowUnversioned, dryRun }) {
   if (publish && (!confirmPublication || allowUnversioned || dryRun)) throw new Error('npm_publish_requires_confirmation_and_committed_source');
 }
 
-export async function packNpm({ root, outputDir, allowUnversioned = false, publish = false, env = process.env, repository = env.GITHUB_REPOSITORY }) {
+export async function packNpm({ root, outputDir, allowUnversioned = false, publish = false, env = process.env, repository = env.GITHUB_REPOSITORY, version }) {
   if (repository && !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) throw new Error('npm_invalid_repository');
-  const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json')));
-  const lock = JSON.parse(await fs.readFile(path.join(root, 'package-lock.json')));
-  if (pkg.name !== 'pi-lark-gateway' || !/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(pkg.version)) throw new Error('npm_invalid_package');
-  if (lock.version !== pkg.version || lock.packages[''].version !== pkg.version || JSON.stringify(lock.packages[''].dependencies) !== JSON.stringify(pkg.dependencies)) throw new Error('npm_lock_mismatch');
+  const { pkg, lock, sourceVersion } = await releaseManifests(root, version);
   const head = git(root, ['rev-parse', 'HEAD']);
   const status = git(root, ['status', '--porcelain']);
   const commit = head.status === 0 && status.status === 0 && !status.stdout.trim() ? head.stdout.trim() : null;
-  if (!commit && (!allowUnversioned || publish)) throw new Error('npm_requires_clean_committed_source');
+  if (!commit && (!allowUnversioned || publish || version !== undefined)) throw new Error('npm_requires_clean_committed_source');
   if (publish) {
     const tag = git(root, ['rev-parse', `refs/tags/v${pkg.version}^{commit}`]);
     if (tag.status !== 0 || tag.stdout.trim() !== commit) throw new Error('npm_requires_matching_release_tag');
@@ -39,7 +37,7 @@ export async function packNpm({ root, outputDir, allowUnversioned = false, publi
     delete runtime.scripts; delete runtime.private;
     await fs.writeFile(path.join(stage, 'package.json'), JSON.stringify(runtime, null, 2) + '\n');
     await fs.writeFile(path.join(stage, 'npm-shrinkwrap.json'), JSON.stringify(lock, null, 2) + '\n');
-    await fs.writeFile(path.join(stage, 'npm-release.json'), JSON.stringify({ version: pkg.version, sourceCommit: commit, tag: npmTag(pkg.version) }, null, 2) + '\n');
+    await fs.writeFile(path.join(stage, 'npm-release.json'), JSON.stringify({ version: pkg.version, sourceVersion, sourceCommit: commit, tag: npmTag(pkg.version) }, null, 2) + '\n');
     const result = spawnSync('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', packed], { cwd: stage, env, encoding: 'utf8', timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
     if (result.error || result.status !== 0) throw new Error('npm_pack_failed');
     const [info] = JSON.parse(result.stdout);

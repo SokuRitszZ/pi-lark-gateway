@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
+import { releaseManifests, writeReleaseManifests } from './release-version.js';
 
 export const RELEASE_PATHS = ['package.json', 'package-lock.json', 'README.md', 'AGENTS.md', 'LICENSE', 'CHANGELOG.md', 'SECURITY.md', '.gitignore', '.github', 'bin', 'src', 'scripts', 'test', 'docs', 'deploy'];
 const hash = data => createHash('sha256').update(data).digest('hex');
@@ -31,14 +32,12 @@ export async function copyReleaseSource(root, destination) {
   return files;
 }
 
-export async function buildRelease({ root, outputDir, allowUnversioned = false }) {
-  const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json')));
-  const lock = JSON.parse(await fs.readFile(path.join(root, 'package-lock.json')));
-  if (!/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(pkg.version) || pkg.name !== 'pi-lark-gateway') throw new Error('release_invalid_version');
-  if (lock.version !== pkg.version || lock.packages[''].version !== pkg.version || JSON.stringify(lock.packages[''].dependencies) !== JSON.stringify(pkg.dependencies)) throw new Error('release_lock_mismatch');
+export async function buildRelease({ root, outputDir, allowUnversioned = false, version }) {
+  const manifests = await releaseManifests(root, version);
+  const { pkg, sourceVersion } = manifests;
   const git = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' });
   const commit = git.status === 0 ? git.stdout.trim() : null;
-  if (!commit && !allowUnversioned) throw new Error('release_requires_git_commit_or_allow_unversioned');
+  if (!commit && (!allowUnversioned || version !== undefined)) throw new Error('release_requires_git_commit_or_allow_unversioned');
   if (commit) {
     const status = spawnSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' });
     if (status.status !== 0 || status.stdout.trim()) throw new Error('release_requires_clean_worktree');
@@ -48,7 +47,11 @@ export async function buildRelease({ root, outputDir, allowUnversioned = false }
   try {
     const staged = path.join(temp, name);
     const files = await copyReleaseSource(root, staged);
-    await fs.writeFile(path.join(staged, 'release-manifest.json'), JSON.stringify({ version: pkg.version, sourceCommit: commit, node: process.version, files }, null, 2) + '\n');
+    if (version !== undefined) {
+      await writeReleaseManifests(staged, manifests);
+      for (const file of ['package.json', 'package-lock.json']) files[file] = hash(await fs.readFile(path.join(staged, file)));
+    }
+    await fs.writeFile(path.join(staged, 'release-manifest.json'), JSON.stringify({ version: pkg.version, sourceVersion, sourceCommit: commit, node: process.version, files }, null, 2) + '\n');
     const archive = path.join(temp, `${name}.tar.gz`);
     const tar = spawnSync('tar', ['-czf', archive, '-C', temp, name], { encoding: 'utf8', env: { ...process.env, COPYFILE_DISABLE: '1' } });
     if (tar.error || tar.status !== 0) throw new Error('release_tar_failed');

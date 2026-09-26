@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { copyReleaseSource, buildRelease } from '../scripts/release.js';
 import { packNpm } from '../scripts/npm-release.js';
-import { releaseMetadata, verifyReleaseBundle } from '../scripts/ci-release.js';
+import { releaseMetadata, workflowReleaseMetadata, verifyReleaseBundle } from '../scripts/ci-release.js';
 import { publishNpmBundle } from '../scripts/publish-npm.js';
 import { publishGitHubBundle } from '../scripts/github-release.js';
 
@@ -45,6 +45,34 @@ test('release binds clean tag/version/commit, source and npm bundles, repository
   await assert.rejects(verifyReleaseBundle(root, metadata), /checksum/);
   await fs.appendFile(path.join(root, 'README.md'), '\nmodified');
   await assert.rejects(releaseMetadata({ root, tag: metadata.tag, repository: metadata.repository }), /clean_tagged/);
+});
+
+test('branch-driven beta and merged stable builds stamp both manifests without modifying source or inventing commits', async t => {
+  const { root, metadata: initial } = await fixture(t);
+  const beforePackage = await fs.readFile(path.join(root, 'package.json'));
+  const beforeLock = await fs.readFile(path.join(root, 'package-lock.json'));
+  const env = { GITHUB_REPOSITORY: initial.repository, GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/heads/release/2.3.4',
+    GITHUB_SHA: initial.commit, GITHUB_RUN_NUMBER: '88', GITHUB_RUN_ATTEMPT: '1' };
+  const push = { repository: { full_name: initial.repository }, ref: env.GITHUB_REF, after: initial.commit, deleted: false };
+  const beta = await workflowReleaseMetadata({ root, env, event: push });
+  assert.equal(beta.version, '2.3.4-beta.88'); assert.equal(beta.distTag, 'beta');
+  assert.equal(beta.sourceVersion, initial.version); assert.equal(beta.commit, initial.commit);
+  const pr = { action: 'closed', repository: push.repository, pull_request: { merged: true, merge_commit_sha: initial.commit,
+    head: { ref: 'release/2.3.4', repo: push.repository }, base: { ref: 'main', repo: push.repository } } };
+  const stable = await workflowReleaseMetadata({ root, env: { ...env, GITHUB_EVENT_NAME: 'pull_request' }, event: pr });
+  assert.equal(stable.version, '2.3.4'); assert.equal(stable.distTag, 'latest');
+  for (const metadata of [beta, stable]) {
+    const directory = path.join(root, 'dist', metadata.kind);
+    await buildRelease({ root, outputDir: directory, version: metadata.version });
+    await packNpm({ root, outputDir: path.join(directory, 'npm'), version: metadata.version, repository: metadata.repository });
+    const bundle = await verifyReleaseBundle(root, metadata, directory);
+    assert.equal(bundle.assets.length, 4);
+  }
+  assert.deepEqual(await fs.readFile(path.join(root, 'package.json')), beforePackage);
+  assert.deepEqual(await fs.readFile(path.join(root, 'package-lock.json')), beforeLock);
+  assert.equal(spawnSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).stdout.trim(), '');
+  const wrong = 'f'.repeat(40);
+  await assert.rejects(workflowReleaseMetadata({ root, env: { ...env, GITHUB_SHA: wrong }, event: { ...push, after: wrong } }), /clean_event_commit/);
 });
 
 test('already published identical npm version is skipped without moving dist-tags', async () => {
@@ -114,7 +142,11 @@ test('GitHub Release is a draft until all artifacts upload; retry skips matching
 test('workflow contract separates unprivileged validation from exact-artifact publication', async () => {
   const release = await fs.readFile(path.join(project, '.github/workflows/release.yml'), 'utf8');
   const ci = await fs.readFile(path.join(project, '.github/workflows/ci.yml'), 'utf8');
-  assert.match(release, /tags: \['v\*'\]/); assert.match(release, /cancel-in-progress: false/);
+  assert.match(release, /branches: \['release\/\*'\]/); assert.match(release, /types: \[closed\]/);
+  assert.match(release, /group: release-run-\$\{\{ github.run_id \}\}/); assert.match(release, /cancel-in-progress: false/);
+  assert.match(release, /pull_request.merged == true/); assert.match(release, /head.repo.full_name == github.repository/);
+  assert.match(release, /scripts\/ci-release.js build/); assert.match(release, /--expected-version/);
+  assert.doesNotMatch(release, /tags:|RELEASE_TAG|workflow_dispatch:/);
   assert.match(release, /needs: \[prepare, verify\]/); assert.match(release, /environment: npm-publish/);
   assert.equal((release.match(/id-token: write/g) || []).length, 1);
   assert.equal((release.match(/contents: write/g) || []).length, 1);
