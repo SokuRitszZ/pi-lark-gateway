@@ -36,6 +36,8 @@ function fixture() {
   return { transport, client, calls, logs, fail, displayed, advance: ms => { time += ms; } };
 }
 const card = (text, state = 'thinking', title = '标题') => responseCard(title, text, state, 'run');
+const images = value => value?.tag === 'img' ? [value]
+  : value && typeof value === 'object' ? Object.values(value).flatMap(images) : [];
 
 for (const fallback of [false, true]) test(`inline images remain on the original card across native text updates and fallback=${fallback}`, async () => {
   const f = fixture();
@@ -46,8 +48,11 @@ for (const fallback of [false, true]) test(`inline images remain on the original
   response.event({ type: 'message_start', message: { role: 'assistant', content: [{ type: 'text', text: '图片说明' }] } });
   await response.finish('图片说明');
   const shown = f.displayed('message-1');
-  assert.equal(shown.body.elements.filter(element => element.tag === 'img').length, 1);
-  assert.equal(shown.body.elements.find(element => element.tag === 'img').img_key, 'img_inline');
+  assert.equal(images(shown).length, 1);
+  assert.equal(images(shown)[0].img_key, 'img_inline');
+  assert.equal(images(shown)[0].compact_width, undefined);
+  assert.equal(shown.body.elements[1].columns[0].width, '278px');
+  assert.equal(shown.config.width_mode, 'default');
   assert.match(shown.body.elements[0].content, /图片说明/);
   assert.equal(f.calls.filter(call => call.kind === 'send').length, 1);
 });

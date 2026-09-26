@@ -12,6 +12,7 @@
 - Reusable test matrix, exact-artifact smoke/verification, opt-in npm OIDC publication and draft-to-public GitHub Releases with immutable assets and integrity-checked retries.
 
 ### Changed
+- Constrain inline image previews with a 278px JSON 2.0 column instead of legacy compact-width image attributes; keep default card width and existing error fallback behavior.
 - Use default-width reply cards with compact inline image previews, preserving full-image viewing on click.
 - Embed outgoing images in the current response card instead of standalone image messages; serialize image/text updates, retain images through finalization and native fallback, and fail explicitly without an active card.
 - Fix undefined image MIME errors with the installed Pi provider's flat ImageContent contract; normalize legacy image blocks on history replay without rewriting original JSONL, with real provider-serialization and SDK-resume regression tests.

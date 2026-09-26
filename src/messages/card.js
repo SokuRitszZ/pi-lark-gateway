@@ -5,8 +5,16 @@ export function responseCard(title, text, state, controlId, images = []) {
     schema: '2.0',
     config: { width_mode: 'default', update_multi: true },
     header: { template: CARD_COLORS[state], title: { tag: 'plain_text', content: title || '正在整理意图…' } },
-    body: { elements: [{ tag: 'markdown', content: text }, ...images.map(image => ({ tag: 'img', img_key: image.key,
-      alt: { tag: 'plain_text', content: image.name }, scale_type: 'fit_horizontal', compact_width: true, preview: true })), ...(state === 'thinking' && controlId ? [
+    body: { elements: [{ tag: 'markdown', content: text }, ...images.map(image => ({
+      // JSON 2.0 columns cap the preview at 278px and shrink on narrow screens.
+      // Avoid legacy image compact_width/custom_width attributes.
+      tag: 'column_set', flex_mode: 'none', horizontal_spacing: '0px', columns: [{
+        tag: 'column', width: '278px', padding: '0px', elements: [{
+          tag: 'img', img_key: image.key, alt: { tag: 'plain_text', content: image.name },
+          scale_type: 'fit_horizontal', preview: true,
+        }],
+      }],
+    })), ...(state === 'thinking' && controlId ? [
       { tag: 'form', name: 'interrupt', elements: [
         { tag: 'column_set', flex_mode: 'none', horizontal_spacing: 'small', columns: [
           { tag: 'column', width: 'auto', vertical_align: 'center', elements: [

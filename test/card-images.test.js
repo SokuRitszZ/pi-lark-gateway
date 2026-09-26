@@ -7,7 +7,8 @@ import { createMessageHandler } from '../src/messages/handler.js';
 import { createMediaTool } from '../src/media/index.js';
 
 const picture = { key: 'img_fixture', name: '测试.png' };
-const images = card => card.body.elements.filter(element => element.tag === 'img');
+const images = value => value?.tag === 'img' ? [value]
+  : value && typeof value === 'object' ? Object.values(value).flatMap(images) : [];
 function fixture(editHook = async () => {}) {
   const cards = new Map(); let sends = 0;
   const replies = { async sendCardReply(_m, card) { const id = `m${++sends}`; cards.set(id, card); return id; },
@@ -24,7 +25,11 @@ test('images update the existing primary card and survive subsequent text and fi
   await response.finish('图片说明');
   assert.equal(f.sends(), 1); assert.match(f.cards.get('m1').body.elements[0].content, /图片说明/);
   assert.equal(images(f.cards.get('m1')).length, 1); assert.equal(images(f.cards.get('m1'))[0].scale_type, 'fit_horizontal');
-  assert.equal(images(f.cards.get('m1'))[0].compact_width, true);
+  assert.equal(images(f.cards.get('m1'))[0].compact_width, undefined);
+  assert.equal(images(f.cards.get('m1'))[0].custom_width, undefined);
+  const layout = f.cards.get('m1').body.elements[1];
+  assert.equal(layout.tag, 'column_set'); assert.equal(layout.flex_mode, 'none');
+  assert.equal(layout.columns[0].width, '278px'); assert.equal(layout.columns[0].padding, '0px');
   assert.equal(images(f.cards.get('m1'))[0].preview, true);
   assert.equal(f.cards.get('m1').config.width_mode, 'default');
   await assert.rejects(response.appendImage({ key: 'img_late' }), { code: 'MEDIA_SEND_DENIED' });
