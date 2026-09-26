@@ -12,7 +12,7 @@
 - Reusable test matrix, exact-artifact smoke/verification, opt-in npm OIDC publication and draft-to-public GitHub Releases with immutable assets and integrity-checked retries.
 
 ### Changed
-- Handle an exact Feishu `/restart` command natively for owner/admins, respecting access policy and waiting for confirmation plus all accepted output/cleanup before the deferred restart.
+- Recognize a leading Feishu `/restart` command at gateway ingress for owner/admins, accepting trailing remarks and plain rich-text messages without any model fallback, respecting access policy and waiting for confirmation plus all accepted output/cleanup before the deferred restart.
 - Add `restart` CLI scheduling: wait for all accepted replies, card updates and cleanup before a delayed managed restart; coalesce requests and never force-kill the active response.
 - Collapse adjacent same-kind card tool calls as `tool ×N`, without parentheses; show the full sanitized operation in a fenced Markdown block while the newest call remains the last visible timeline output, including after it completes. Collapse details only when subsequent text or a new tool appears, and preserve balanced code fences across byte-budgeted continuation cards.
 - Card replies retain streamed assistant commentary, chronological tool statuses and final text without duplicating the SDK's aggregate answer. Live overflow reuses continuation cards; stopped/error cards preserve partial progress. Normal text reply mode is unchanged.

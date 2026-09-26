@@ -21,9 +21,9 @@ function fixture() {
   return { config, getState: () => ({ config, groups: {} }), approvals, block: () => { blocked = true; } };
 }
 
-test('restart parser matches only an exact text command with optional real leading bot mentions', () => {
-  for (const text of ['/restart', ' \n/restart\n ', '@_bot /restart', '@_bot @_bot /restart']) assert.equal(isRestartCommand(event(text, { mention: true }), 'bot'), true);
-  for (const text of ['请执行 /restart', '/restart now', '/restart\nother', '`/restart`', 'Bot Name\n/restart', '/Restart', '@_other /restart']) assert.equal(isRestartCommand(event(text, { mention: true }), 'bot'), false);
+test('restart parser recognizes a leading command token with trailing text and real bot mentions', () => {
+  for (const text of ['/restart', ' \n/restart\n ', '/restart   测试 PI', '/restart now', '/restart\nother', '@_bot /restart', '@_bot @_bot /restart 测试 PI']) assert.equal(isRestartCommand(event(text, { mention: true }), 'bot'), true);
+  for (const text of ['请执行 /restart', '/restartable', '/restart-test', '`/restart`', 'Bot Name\n/restart', '/Restart', '@_other /restart']) assert.equal(isRestartCommand(event(text, { mention: true }), 'bot'), false);
   assert.equal(isRestartCommand(event('@_bot /restart', { mention: true }), 'other-bot'), false);
   const bot = event('/restart'); bot.sender.sender_type = 'bot'; assert.equal(isRestartCommand(bot, 'bot'), false);
   const invalid = event('/restart'); invalid.message.content = 'invalid'; assert.equal(isRestartCommand(invalid, 'bot'), false);
@@ -57,7 +57,11 @@ for (const card of [false, true]) test(`slash command bypasses model, deduplicat
     setTimer: fn => { timer = fn; return 1; }, clearTimer: () => { timer = undefined; } });
   const tick = ms => { now += ms; const fn = timer; timer = undefined; fn?.(); };
   const route = createRouter({ ...state, handler, threads: { save: async () => {} }, reply: async () => {}, log() {} });
-  const request = event('@_bot /restart', { group: true, mention: true });
+  const request = event('@_bot /restart   测试 PI', { group: true, mention: true });
+  if (card) {
+    request.message.message_type = 'post';
+    request.message.content = JSON.stringify({ zh_cn: { title: '', content: [[{ tag: 'at', user_id: 'bot' }, { tag: 'text', text: ' /restart   测试 PI' }]] } });
+  }
   route(request); route(request); await flush();
   assert.equal(scheduled, 1); assert.equal(modelCalls, 0); tick(10000); assert.equal(restarted, 0);
   sending.resolve(); await flush(); tick(10000); assert.equal(restarted, 0);
@@ -74,10 +78,27 @@ test('member command is denied without model/tool execution while ordinary text 
   const state = fixture(), outputs = []; let models = 0, scheduled = 0;
   const command = createRestartCommand({ ...state, canRestart: () => true, schedule: () => { scheduled++; return { delayMs: 1000 }; } });
   const handler = createMessageHandler({ command, answer: async () => { models++; return 'normal answer'; }, reply: async (_, output) => outputs.push(output) });
-  handler.accept(event('/restart', { user: 'member' }));
+  handler.accept(event('/restart 测试 PI', { user: 'member' }), { commandName: 'restart' });
   handler.accept(event('解释 /restart 的作用', { user: 'member' }));
   await handler.drain();
   assert.equal(scheduled, 0); assert.equal(models, 1); assert.match(outputs[0], /无权/); assert.equal(outputs[1], 'normal answer');
+});
+test('gateway classifies text and rich-text restart at ingress, not embedded mentions', () => {
+  const state = fixture(), accepted = [];
+  const route = createRouter({ ...state, handler: { accept: (data, options) => accepted.push(options.commandName) }, threads: { save: async () => {} }, reply: async () => {}, log() {} });
+  route(event('/restart   测试 PI'));
+  const post = event('', { group: true, mention: true });
+  post.message.message_type = 'post';
+  post.message.content = JSON.stringify({ zh_cn: { title: '', content: [[{ tag: 'at', user_id: 'bot' }, { tag: 'text', text: ' /restart 测试 PI' }]] } });
+  assert.equal(isRestartCommand(post, 'bot'), true); route(post);
+  route(event('请解释 /restart'));
+  assert.deepEqual(accepted, ['restart', 'restart', undefined]);
+});
+test('a native command never falls back to the model if its executor becomes unavailable', async () => {
+  let models = 0; const outputs = [];
+  const handler = createMessageHandler({ command: () => undefined, answer: async () => { models++; }, reply: async (_, text) => outputs.push(text) });
+  handler.accept(event('/restart 测试 PI'), { commandName: 'restart' });
+  await handler.drain(); assert.equal(models, 0); assert.match(outputs[0], /命令暂不可用/);
 });
 test('a queued restart rechecks admin authority when execution begins', async () => {
   const state = fixture(), first = deferred(), outputs = []; let scheduled = 0;

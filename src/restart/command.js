@@ -1,9 +1,21 @@
 import { isAdmin } from '../config/index.js';
 
 export function isRestartCommand(event, botOpenId) {
-  if (event?.sender?.sender_type !== 'user' || event.message?.message_type !== 'text') return false;
+  if (event?.sender?.sender_type !== 'user') return false;
   let text;
-  try { text = JSON.parse(event.message.content).text; } catch { return false; }
+  try {
+    const body = JSON.parse(event.message.content);
+    if (event.message.message_type === 'text') text = body.text;
+    else if (event.message.message_type === 'post') {
+      const post = body.content ? body : body.zh_cn || body.en_us;
+      const rows = (post.content || []).map(row => row.map(item => {
+        if (item.tag === 'text' && typeof item.text === 'string') return item.text;
+        if (item.tag === 'at' && botOpenId && item.user_id === botOpenId) return '';
+        throw new Error('not_a_plain_command');
+      }).join(''));
+      text = [post.title || '', ...rows].filter(Boolean).join('\n');
+    }
+  } catch { return false; }
   if (typeof text !== 'string') return false;
   text = text.trim();
   // Strip only actual leading mentions of this bot, never display names or
@@ -14,7 +26,7 @@ export function isRestartCommand(event, botOpenId) {
     if (!key) break;
     text = text.slice(key.length).trimStart();
   }
-  return text === '/restart';
+  return /^\/restart(?:\s|$)/u.test(text);
 }
 
 export function createRestartCommand({ getState, canRestart, schedule, log = () => {} }) {

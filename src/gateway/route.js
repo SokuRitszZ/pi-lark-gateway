@@ -1,9 +1,13 @@
 import { admit, withGrant } from '../config/index.js';
 import { transformDebugEvent } from '../debug/index.js';
+import { isRestartCommand } from '../restart/index.js';
 
 export function createRouter({ getState, approvals, handler, threads, reply, log }) {
   return data => {
-    const transformed = transformDebugEvent(data, getState().config.access.owner);
+    // Classify native commands at ingress, before any model/debug processing.
+    const initial = getState();
+    const commandName = isRestartCommand(data, initial.config.bot.openId) ? 'restart' : undefined;
+    const transformed = commandName ? { event: data } : transformDebugEvent(data, initial.config.access.owner);
     if (transformed.denied) { log('debug_denied'); return; }
     if (transformed.error) {
       void reply({ id: data.message.message_id, chatId: data.message.chat_id,
@@ -21,7 +25,7 @@ export function createRouter({ getState, approvals, handler, threads, reply, log
       void approvals.request(data, transformed.debugLabel).catch(() => log('approval_request_failed'));
       return;
     }
-    handler.accept(data);
+    handler.accept(data, { commandName });
     void threads.save().catch(() => log('thread_mapping_save_failed'));
   };
 }

@@ -7,7 +7,7 @@ export function createMessageHandler({ answer, reply, beginResponse, command = (
   const queues = new Map();
   let closed = false;
   return {
-    accept(event) {
+    accept(event, { commandName } = {}) {
       if (closed) return;
       const m = normalizeEvent(event, threadRoots);
       if (!m || seen.has(m.id)) return;
@@ -22,8 +22,12 @@ export function createMessageHandler({ answer, reply, beginResponse, command = (
         const progress = await response;
         try {
           // Commands share the same queue/final-send/cleanup lifetime as answers.
-          let output = await command(m, event);
-          if (output === undefined) {
+          let output;
+          if (commandName) {
+            output = await command(m, event);
+            // An ingress-classified command must NEVER fall back to the model.
+            if (typeof output !== 'string') output = '命令暂不可用，请检查网关状态。';
+          } else {
             if (m.debugSleepMs !== undefined) {
               log('debug_sleep_started');
               await sleep(m.debugSleepMs);
