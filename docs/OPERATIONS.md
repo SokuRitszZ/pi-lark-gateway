@@ -46,6 +46,10 @@ launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/dev.pi.lark-gateway.plist
 
 ## 等待输出完成后重启
 
+飞书内可由 **owner 或管理员** 独立发送文本命令 `/restart`；群聊仍遵守 @、白名单和文本规则，拉黑状态优先。命令直接进入本地消息队列，不调用模型，也不要求启用模型工具。排队后执行时重新检查权限；先发送确认，确认及其他已接收回复的发送、收尾全部结束才会触发重启。引用、说明文字或带其他参数的 `/restart` 不识别为原生命令。已获聊天访问权限的普通成员会收到无权限提示。
+
+终端也可登记同一种任务：
+
 ```bash
 pi-lark-gateway restart --delay-ms 1000
 # 源码目录：
@@ -57,7 +61,7 @@ npm run restart -- --delay-ms 1000
 
 重启触发时先同步停止接收新消息，再关闭连接、清理资源，以专用退出码 75 退出。`pi-lark-gateway start` / `npm start` 的启动器、项目提供的 systemd `Restart=on-failure` 与 launchd `SuccessfulExit=false` 模板会重新拉起；直接运行 `node src/index.js` 且无外部管理器则只会退出，不保证自行启动。普通 SIGINT/SIGTERM 保留原维护停机行为，不能替代此延迟重启命令。
 
-控制通道仅支持 macOS/Linux，位于 `/tmp/pi-lark-gateway-<uid>/<应用状态路径哈希>.sock`；目录 700、socket 600，仅同一系统用户访问，不开放 TCP 或飞书远程管理入口，不写入凭据或对话内容。任务只存在进程内存中，异常退出不在新进程重复触发；陈旧 socket 会在下次启动安全检查后清理，不纳入状态备份。
+控制通道仅支持 macOS/Linux，位于 `/tmp/pi-lark-gateway-<uid>/<应用状态路径哈希>.sock`；目录 700、socket 600，仅同一系统用户访问，不开放 TCP；飞书 `/restart` 入口仅向 owner/管理员开放并受现有访问策略保护，不写入凭据或对话内容。任务只存在进程内存中，异常退出不在新进程重复触发；陈旧 socket 会在下次启动安全检查后清理，不纳入状态备份。
 
 **首次升级限制：** 旧进程尚未加载新代码，没有控制通道；命令会明确失败，不会退回强杀。须在当前对话输出结束后的空闲维护窗口，先由操作者完成一次升级重启，此后统一使用上述命令。收到“任务已登记”不等于已经重启成功；应另查新进程和 `websocket_<state>`，再发测试消息验收。
 

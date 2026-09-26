@@ -2,7 +2,7 @@ import { normalizeEvent } from './normalize.js';
 
 export const REACTION_EMOJIS = ['SMILE', 'THUMBSUP', 'OK', 'HEART', 'CLAP'];
 const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-export function createMessageHandler({ answer, reply, beginResponse, react = async () => {}, removeReaction = async () => {}, random = Math.random, log = () => {}, getTools = () => 'none', threadRoots = new Map(), sleep = defaultSleep }) {
+export function createMessageHandler({ answer, reply, beginResponse, command = () => undefined, react = async () => {}, removeReaction = async () => {}, random = Math.random, log = () => {}, getTools = () => 'none', threadRoots = new Map(), sleep = defaultSleep }) {
   const seen = new Map();
   const queues = new Map();
   let closed = false;
@@ -21,13 +21,16 @@ export function createMessageHandler({ answer, reply, beginResponse, react = asy
       const job = (queues.get(m.key) || Promise.resolve()).catch(() => {}).then(async () => {
         const progress = await response;
         try {
-          let output;
-          if (m.debugSleepMs !== undefined) {
-            log('debug_sleep_started');
-            await sleep(m.debugSleepMs);
-            output = `debug sleep ${m.debugSleepMs}ms done`;
-          } else {
-            output = m.text ? await answer(m.key, m.text, event => progress?.event(event), { summarizeIntent: progress?.summarizeIntent === true, tools: getTools(m), onSession: progress?.onSession }) : '目前支持文字和富文本消息，图片、语音和文件解析还未接入。';
+          // Commands share the same queue/final-send/cleanup lifetime as answers.
+          let output = await command(m, event);
+          if (output === undefined) {
+            if (m.debugSleepMs !== undefined) {
+              log('debug_sleep_started');
+              await sleep(m.debugSleepMs);
+              output = `debug sleep ${m.debugSleepMs}ms done`;
+            } else {
+              output = m.text ? await answer(m.key, m.text, event => progress?.event(event), { summarizeIntent: progress?.summarizeIntent === true, tools: getTools(m), onSession: progress?.onSession }) : '目前支持文字和富文本消息，图片、语音和文件解析还未接入。';
+            }
           }
           if (progress) await progress.finish(output);
           else await reply(m, output);

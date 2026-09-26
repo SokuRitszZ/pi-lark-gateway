@@ -8,7 +8,7 @@ import { createAgent } from '../agent/index.js';
 import { createConnection, createMetadata, createCards, createReplies, createReactions } from '../lark/index.js';
 import { createRouter } from './route.js';
 import { createControls, canControlResponse } from '../controls/index.js';
-import { createRestartControl } from '../restart/index.js';
+import { createRestartControl, createRestartCommand } from '../restart/index.js';
 
 // Composition root only: concrete feature implementations live in their own directories.
 export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || defaultConfigPath(), log, onRestart } = {}) {
@@ -33,7 +33,13 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
   });
   const replies = createReplies(connection.client, threads, log);
   const controls = createControls({ log, canControl: (message, user) => canControlResponse(message, user, getState(), approvals) });
-  const handler = createMessageHandler({ log, threadRoots: threads.roots, reply: replies.reply,
+  let restartControl, ready = false;
+  const handler = createMessageHandler({
+    command: createRestartCommand({ getState,
+      canRestart: (message, state) => canControlResponse(message, message.userId, state, approvals),
+      schedule: () => { if (!restartControl) throw new Error('restart_unavailable'); return restartControl.schedule(); }, log,
+    }),
+    log, threadRoots: threads.roots, reply: replies.reply,
     getTools: message => {
       const state = settings.get();
       return (message.isGroup ? state.groups[message.chatId] || state.config.access.groups : state.config.access.private).tools;
@@ -49,7 +55,6 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
     getChatInfo: metadata.getChatInfo, ...createCards(connection.client),
   });
   const route = createRouter({ getState, approvals, handler, threads, reply: replies.reply, log });
-  let restartControl, ready = false;
   try {
     if (onRestart) restartControl = await createRestartControl({ base, isIdle: () => ready && handler.isIdle(), restart: onRestart, log });
     await connection.start({

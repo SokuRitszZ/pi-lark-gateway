@@ -71,6 +71,7 @@ export async function createRestartControl({ base, isIdle, restart, log = () => 
   try { await fs.chmod(file, 0o600); }
   catch (error) { await new Promise(resolve => server.close(resolve)); throw error; }
   return {
+    schedule: scheduler.schedule,
     async close() {
       scheduler.close();
       for (const client of clients) client.destroy();
