@@ -8,6 +8,7 @@ const messages = {
   MEDIA_STORAGE_FULL: '网关附件收件箱已达到 512 MiB 配额，请管理员检查并清理不再需要的附件后重试。',
   MEDIA_SEND_DENIED: '当前会话未开启附件发送工具、权限已撤销或本轮已结束，不能发送。',
   MEDIA_SEND_LIMIT: '本轮最多发送 4 个附件，请下一轮继续。',
+  IMAGE_INPUT_INVALID: '图片数据不完整或格式不受支持，已保留原始会话记录，请联系管理员检查。',
   VISION_UNSUPPORTED: '已收到图片，但当前模型未声明支持图片输入。请配置支持视觉的模型后重发，不能仅靠开通飞书权限识图。',
 };
 export const mediaErrorText = code => messages[code];

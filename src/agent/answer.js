@@ -1,5 +1,8 @@
+import { runtimeImage } from './image-compat.js';
+
 export async function generateAnswer(session, text, onEvent, timeoutMs = 0, images = []) {
   if (images.length && !session.model?.input?.includes('image')) throw Object.assign(new Error('vision_unsupported'), { code: 'VISION_UNSUPPORTED' });
+  images = images.map(runtimeImage);
   const unsubscribe = session.subscribe(onEvent);
   const start = session.messages.length;
   let timedOut = false;

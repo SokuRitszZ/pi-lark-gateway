@@ -22,7 +22,7 @@ export function createMedia({ base, getDirectory, transport, canSend = () => fal
         const name = safeName(attachment.name, `${attachment.kind}.${mime ? mime.split('/')[1] : 'bin'}`);
         const file = await store.save(workspace, bytes, name);
         const vision = !!mime && bytes.length <= MAX_IMAGE_BYTES;
-        if (vision) images.push({ type: 'image', source: { type: 'base64', mediaType: mime, data: bytes.toString('base64') } });
+        if (vision) images.push({ type: 'image', mimeType: mime, data: bytes.toString('base64') });
         files.push({ name, path: file, bytes: bytes.length, kind: attachment.kind, vision,
           ...(!vision && (mime || attachment.kind === 'image') ? { note: '未传入视觉模型：仅支持不超过 5 MiB 的 PNG/JPEG/GIF/WebP，请转换或压缩后重发。' } : {}) });
       }

@@ -54,7 +54,7 @@ test('image bytes reach the actual prompt option shape, without enabling tools, 
   const e = event('image', { image_key: 'img_test' }); handler.accept(e); handler.accept(e); await handler.drain();
   assert.equal(downloads, 1); assert.deepEqual(replies, ['image received']);
   assert.equal(session.input.options.expandPromptTemplates, false);
-  assert.deepEqual(session.input.options.images, [{ type: 'image', source: { type: 'base64', mediaType: 'image/png', data: png.toString('base64') } }]);
+  assert.deepEqual(session.input.options.images, [{ type: 'image', mimeType: 'image/png', data: png.toString('base64') }]);
   assert.match(session.input.text, /tools:none/);
   const inbox = path.join(getDirectory(normalizeEvent(e).key), 'attachments/inbox');
   const file = path.join(inbox, (await fs.readdir(inbox))[0]);
