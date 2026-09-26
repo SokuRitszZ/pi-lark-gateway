@@ -1,11 +1,13 @@
+import { toolPreview, escapePreview } from './tool-preview.js';
+
 const textParts = message => message.content.map(block => block.type === 'text' && typeof block.text === 'string' ? block.text : undefined);
 const parts = entry => entry.parts.filter(part => typeof part === 'string');
 const toolName = name => String(name || 'tool').replace(/[^\p{L}\p{N}_.:-]/gu, '_').slice(0, 100).replaceAll('_', '\\_');
 
-// Per-response public transcript only: never retain reasoning, args or results.
+// Keep public text/statuses and only the newest sanitized operation preview.
 export function createTimeline() {
   const entries = [], tools = new Map(), known = new WeakMap();
-  let active;
+  let active, latestTool;
   function messageEntry(message, start = false) {
     let entry = message && known.get(message);
     if (!entry) {
@@ -17,12 +19,28 @@ export function createTimeline() {
     return entry;
   }
   function render() {
-    let result = '', previous;
+    const blocks = [];
     for (const entry of entries) {
-      const text = entry.type === 'text' ? parts(entry).join('\n') : `(${entry.status} ${entry.name}：${entry.label})`;
-      if (!text) continue;
-      result += (result ? previous === 'tool' && entry.type === 'tool' ? '\n' : '\n\n' : '') + text;
-      previous = entry.type;
+      if (entry.type === 'text') {
+        const text = parts(entry).join('\n');
+        if (text.trim()) blocks.push({ type: 'text', text });
+      } else {
+        const previous = blocks.at(-1);
+        if (previous?.type === 'tool' && previous.kind === entry.kind) previous.calls.push(entry);
+        else blocks.push({ type: 'tool', kind: entry.kind, calls: [entry] });
+      }
+    }
+    let result = '', previous;
+    for (const block of blocks) {
+      let text = block.text;
+      if (block.type === 'tool') {
+        const calls = block.calls, last = calls.at(-1);
+        const status = ['⏳', '❌', '⏹', '✅'].find(value => calls.some(call => call.status === value));
+        text = `${status} ${last.name}${calls.length > 1 ? ` ×${calls.length}` : ''}`;
+        if (last === latestTool && last.preview) text += `：${escapePreview(last.preview)}`;
+      }
+      result += (result ? previous === 'tool' && block.type === 'tool' ? '\n' : '\n\n' : '') + text;
+      previous = block.type;
     }
     return result;
   }
@@ -53,7 +71,9 @@ export function createTimeline() {
       if (event.type === 'tool_execution_start') {
         active = undefined;
         if (event.toolCallId && tools.has(event.toolCallId)) return false;
-        const entry = { type: 'tool', name: toolName(event.toolName), status: '⏳', label: '执行中' };
+        if (latestTool) delete latestTool.preview;
+        const entry = { type: 'tool', kind: String(event.toolName || 'tool'), name: toolName(event.toolName), status: '⏳', preview: toolPreview(event.toolName, event.args) };
+        latestTool = entry;
         entries.push(entry);
         if (event.toolCallId) tools.set(event.toolCallId, entry);
         return true;
@@ -61,7 +81,7 @@ export function createTimeline() {
       if (event.type === 'tool_execution_end') {
         const entry = tools.get(event.toolCallId);
         if (!entry) return false;
-        entry.status = event.isError ? '❌' : '✅'; entry.label = event.isError ? '失败' : '完成';
+        entry.status = event.isError ? '❌' : '✅';
         return true;
       }
       return ['agent_start', 'intent_title'].includes(event.type);
@@ -81,7 +101,7 @@ export function createTimeline() {
           else if (remainder) entries.push({ type: 'text', parts: [remainder] });
         } else if (text) entries.push({ type: 'text', parts: [text] });
       }
-      for (const entry of entries) if (entry.type === 'tool' && entry.status === '⏳') { entry.status = '⏹'; entry.label = '未完成'; }
+      for (const entry of entries) if (entry.type === 'tool' && entry.status === '⏳') entry.status = '⏹';
       return render();
     },
   };

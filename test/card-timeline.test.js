@@ -32,13 +32,13 @@ test('card streams commentary and tools in order, then retains them with the rea
         listener({ type: 'tool_execution_start', toolCallId: 'a', toolName: 'read', args: { secret: 'HIDDEN' } });
         listener({ type: 'tool_execution_end', toolCallId: 'a', result: 'HIDDEN' });
         await flush(t);
-        assert.match(body(cards.get('card-0')), /我会先检查。\n\n\(✅ read：完成\)/);
+        assert.match(body(cards.get('card-0')), /我会先检查。\n\n✅ read/);
       }
     }
   } };
   const output = await generateAnswer(session, 'hello', event => response.event(event));
   await response.finish(output);
-  assert.equal(body(cards.get('card-0')), '我会先检查。\n\n(✅ read：完成)\n\n参数已配置。\n\n最终答复：测试通过。');
+  assert.equal(body(cards.get('card-0')), '我会先检查。\n\n✅ read\n\n参数已配置。\n\n最终答复：测试通过。');
   assert.equal(cards.get('card-0').header.template, 'green');
   response.event({ type: 'message_end', message: msg('late') }); await flush(t);
   assert.doesNotMatch(body(cards.get('card-0')), /HIDDEN|late/);
@@ -64,7 +64,7 @@ test('oversize live transcript reuses continuation cards, fits request limits an
   await flush(t);
   await response.finish(`${first}\n最终答复`);
   assert.deepEqual([...cards.keys()].slice(0, ids.length), ids);
-  assert.equal([...cards.values()].map(body).join(''), `${first}\n\n(✅ bash：完成)\n\n最终答复`);
+  assert.equal([...cards.values()].map(body).join(''), `${first}\n\n✅ bash\n\n最终答复`);
   for (const card of cards.values()) {
     assert.equal(card.header.template, 'green'); assert.equal(card.body.elements.length, 1);
     assert.ok(Buffer.byteLength(JSON.stringify({ msg_type: 'interactive', content: JSON.stringify(card) })) <= 28 * 1024);
@@ -96,7 +96,7 @@ for (const stopped of [false, true]) test(`terminal card retains partial history
   const card = cards.get('card-0');
   assert.equal(card.header.template, stopped ? 'orange' : 'red');
   assert.match(body(card), /^已经完成第一步。/);
-  assert.match(body(card), /未完成/);
+  assert.match(body(card), /⏹/);
   assert.ok(body(card).endsWith(stopped ? '已停止当前回复。' : '处理失败，请重试。'));
   assert.equal(card.body.elements.length, 1);
 });

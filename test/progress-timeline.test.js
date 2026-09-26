@@ -17,7 +17,7 @@ test('timeline preserves assistant/tool chronology and updates parallel tools in
   end(timeline, '已完成检查。');
   end(timeline, '## 最终结果\n- 测试通过');
   const rendered = timeline.finish('我会检查代码。\n已完成检查。\n## 最终结果\n- 测试通过');
-  assert.equal(rendered, '我会检查代码。\n\n(✅ read：完成)\n(❌ bash：失败)\n\n已完成检查。\n\n## 最终结果\n- 测试通过');
+  assert.equal(rendered, '我会检查代码。\n\n✅ read\n❌ bash\n\n已完成检查。\n\n## 最终结果\n- 测试通过');
   assert.doesNotMatch(rendered, /SECRET/);
 });
 test('streaming snapshots and canonical message_end do not duplicate deltas or leak non-text content', () => {
@@ -41,7 +41,7 @@ test('delta-only events and final fallback complete a partial message without re
   timeline.event({ type: 'tool_execution_end', toolCallId: 'a' });
   for (const delta of ['完成', '一半']) timeline.event({ type: 'message_update', assistantMessageEvent: { type: 'text_delta', contentIndex: 0, delta } });
   assert.match(timeline.render(), /完成一半$/);
-  assert.equal(timeline.finish('开始\n完成全部'), '开始\n\n(✅ read：完成)\n\n完成全部');
+  assert.equal(timeline.finish('开始\n完成全部'), '开始\n\n✅ read\n\n完成全部');
 });
 test('no events and last-message-only callers have final-answer fallbacks', () => {
   assert.equal(createTimeline().finish('只有最终答复'), '只有最终答复');
@@ -55,7 +55,7 @@ test('card timeline retains more than ten tool entries; unfinished calls are not
   for (let i = 0; i < 12; i++) timeline.event({ type: 'tool_execution_start', toolCallId: String(i), toolName: `tool-${i}` });
   const rendered = timeline.finish('已停止当前回复。', { terminal: true });
   assert.match(rendered, /tool-0/); assert.match(rendered, /tool-11/);
-  assert.equal((rendered.match(/未完成/g) || []).length, 12);
+  assert.equal((rendered.match(/⏹/g) || []).length, 12);
   assert.match(rendered, /已停止当前回复。$/);
 });
 test('terminal error preserves partial assistant output and appends a safe failure notice', () => {
