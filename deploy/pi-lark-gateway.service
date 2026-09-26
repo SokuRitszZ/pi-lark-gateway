@@ -1,0 +1,21 @@
+[Unit]
+Description=Pi Feishu gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@APP_DIR@
+ExecStart="@NODE@" --use-env-proxy "@APP_DIR@/src/index.js"
+EnvironmentFile=-%h/.config/pi-lark-gateway/service.env
+Environment=PI_TELEMETRY=0
+Environment=PI_SKIP_VERSION_CHECK=1
+UMask=0077
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

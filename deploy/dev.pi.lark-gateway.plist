@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>dev.pi.lark-gateway</string>
+  <key>ProgramArguments</key><array><string>@NODE@</string><string>--use-env-proxy</string><string>@APP_DIR@/src/index.js</string></array>
+  <key>WorkingDirectory</key><string>@APP_DIR@</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>ThrottleInterval</key><integer>5</integer>
+  <key>Umask</key><integer>63</integer>
+  <key>EnvironmentVariables</key><dict>
+    <key>HOME</key><string>@HOME@</string>
+    <key>PI_TELEMETRY</key><string>0</string>
+    <key>PI_SKIP_VERSION_CHECK</key><string>1</string>
+    <key>PI_LARK_KEEP_AWAKE</key><string>ac</string>
+  </dict>
+  <key>StandardOutPath</key><string>@HOME@/Library/Logs/pi-lark-gateway/stdout.log</string>
+  <key>StandardErrorPath</key><string>@HOME@/Library/Logs/pi-lark-gateway/stderr.log</string>
+</dict></plist>

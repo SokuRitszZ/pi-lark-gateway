@@ -1,0 +1,66 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { defaultConfigPath, migrateConfig, loadConfig, watchConfig } from '../config/index.js';
+import { createMessageHandler, createThreadStore, createResponse } from '../messages/index.js';
+import { createApprovals } from '../approvals/index.js';
+import { createAgent } from '../agent/index.js';
+import { createConnection, createMetadata, createCards, createReplies, createReactions } from '../lark/index.js';
+import { createRouter } from './route.js';
+import { createControls, canControlResponse } from '../controls/index.js';
+
+// Composition root only: concrete feature implementations live in their own directories.
+export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || defaultConfigPath(), log } = {}) {
+  await migrateConfig(configPath);
+  const initial = await loadConfig(configPath);
+  const config = initial.config;
+  const base = path.join(os.homedir(), '.local/share/pi-lark-gateway', config.bot.appId);
+  await fs.mkdir(base, { recursive: true, mode: 0o700 });
+  const connection = createConnection(initial, log);
+  const metadata = createMetadata(connection.client, log);
+  const botInfo = await metadata.probeBot(base);
+  const settings = watchConfig(configPath, initial, log);
+  const getState = () => {
+    const snapshot = settings.get();
+    return { ...snapshot, config: { ...snapshot.config,
+      bot: { ...snapshot.config.bot, openId: snapshot.config.bot.openId || botInfo.openId } } };
+  };
+  const threads = await createThreadStore(base);
+  const agent = await createAgent(base, config.model, {
+    log,
+    getAnswerTimeoutMs: () => settings.get().config.answerTimeoutMs ?? 0,
+  });
+  const replies = createReplies(connection.client, threads, log);
+  const controls = createControls({ log, canControl: (message, user) => canControlResponse(message, user, getState(), approvals) });
+  const handler = createMessageHandler({ log, threadRoots: threads.roots, reply: replies.reply,
+    getTools: message => {
+      const state = settings.get();
+      return (message.isGroup ? state.groups[message.chatId] || state.config.access.groups : state.config.access.private).tools;
+    },
+    beginResponse: createResponse(replies, log, message => {
+      const state = settings.get();
+      const policy = message.isGroup ? (state.groups[message.chatId] || state.config.access.groups) : state.config.access.private;
+      return policy.replyMode || 'normal';
+    }, controls), answer: agent.answer,
+    ...createReactions(connection.client, log),
+  });
+  const approvals = await createApprovals({ file: path.join(base, 'access-approvals.json'), getState, log,
+    getChatInfo: metadata.getChatInfo, ...createCards(connection.client),
+  });
+  const route = createRouter({ getState, approvals, handler, threads, reply: replies.reply, log });
+  await connection.start({
+    'im.message.receive_v1': route,
+    'card.action.trigger': event => event?.action?.value?.kind === 'response_control'
+      ? controls.handle(event) : approvals.handle(event),
+  });
+  log('gateway_started_configured_access');
+  return {
+    async close() {
+      settings.close(); agent.abort();
+      await connection.close();
+      await handler.drain();
+      await approvals.drain();
+      await agent.dispose();
+    },
+  };
+}

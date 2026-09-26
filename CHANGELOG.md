@@ -1,0 +1,32 @@
+# Changelog
+
+## 1.0.0-rc.1 — GA candidate (not yet published)
+
+### Added
+- Single-process limit of ten concurrent conversation tasks; FIFO waiting and per-conversation serialization.
+- Idle session archiving after 30 days: isolated summaries, private persistence, cleanup recovery, and summary-based continuation.
+- Manual Feishu setup with hidden secret input, local doctor, private stopped-service backups, and clean-home installation smoke test.
+- CI matrix, checked source archive packaging with lockfile, file hashes and source commit; installation, operations, release and security documentation.
+- npm runtime distribution with executable pi-lark-gateway CLI, generated shrinkwrap, tarball installation smoke, explicit local publication confirmation and automatic next/latest selection.
+- Tag-triggered GitHub Actions release pipeline: reusable test matrix, exact-artifact smoke/verification, opt-in npm OIDC publication and draft-to-public GitHub Releases with immutable assets and integrity-checked retries.
+
+### Changed
+- New installations require owner approval for unknown users; groups require a mention; tools default to disabled.
+- Domestic Feishu only. International Lark setup/configuration is rejected.
+- Direct dependency versions pinned; existing explicit access/tool settings are preserved.
+
+### Fixed
+- Archival failures keep available original transcripts and do not block normal conversations. Resumed conversations invalidate stale cleanup plans.
+- Setup now accurately describes whitelist approval rather than open access.
+
+### Known limits
+- Queue length/per-user rate limits are not bounded; ten-session concurrency is not a memory or cost quota.
+- Deduplication is in memory; restart may replay work. Shutdown queue handling remains unchanged.
+- Tool-enabled deployment is not sandboxed; approvals are not a host security boundary.
+- Image/audio/file parsing is not implemented. Archived summaries are lossy.
+- Scan registration uses an upstream interface with no public stability guarantee; manual setup is the fallback.
+
+## 0.1.0
+
+Initial locally deployed gateway: Feishu WebSocket, Pi SDK conversation sessions,
+access approval, configuration reload, normal/card replies and response controls.

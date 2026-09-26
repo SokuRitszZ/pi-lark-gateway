@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const [command = '--help', ...args] = process.argv.slice(2);
+const commands = { start: 'src/index.js', setup: 'src/onboarding/index.js', doctor: 'scripts/doctor.js', backup: 'scripts/backup.js' };
+const help = () => console.log('用法：pi-lark-gateway <start|setup|doctor|backup> [参数]\n  setup [--manual]  配置国内飞书；默认白名单审批、工具关闭\n  start             启动网关（单实例）\n  doctor            本地诊断，不联网\n  backup            停服务后的私有备份\n  --version         显示版本');
+if (['--help', '-h', 'help'].includes(command)) help();
+else if (['--version', '-v'].includes(command)) console.log(JSON.parse(await fs.readFile(path.join(root, 'package.json'))).version);
+else if (!Object.hasOwn(commands, command)) { help(); process.exitCode = 1; }
+else if (command === 'start' && args.length) {
+  if (args.length === 1 && ['--help', '-h'].includes(args[0])) help();
+  else { console.error('start 不接受参数；自定义配置请设置 PI_LARK_CONFIG。'); process.exitCode = 1; }
+} else {
+  // Spawn with the supported Node proxy flag; npm bin shebangs cannot portably set it.
+  const child = spawn(process.execPath, ['--use-env-proxy', path.join(root, commands[command]), ...(command === 'setup' ? ['setup'] : []), ...args], { stdio: 'inherit', env: { ...process.env, PI_LARK_CLI: '1' } });
+  const forward = signal => { if (!child.killed) child.kill(signal); };
+  const onInt = () => forward('SIGINT'), onTerm = () => forward('SIGTERM');
+  process.on('SIGINT', onInt); process.on('SIGTERM', onTerm);
+  child.on('error', () => { console.error('gateway_command_failed'); process.exitCode = 1; });
+  child.on('close', (code, signal) => {
+    process.off('SIGINT', onInt); process.off('SIGTERM', onTerm);
+    process.exitCode = code ?? (signal === 'SIGINT' ? 130 : signal === 'SIGTERM' ? 143 : 1);
+  });
+}
