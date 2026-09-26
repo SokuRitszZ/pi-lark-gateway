@@ -33,17 +33,20 @@ export function createMedia({ base, getDirectory, transport, canSend = () => fal
           : '当前 tools:none：没有文件读取或发送工具；可理解已附的视觉图片，但不能读取其余本地文件。',
       ].join('\n') };
     },
-    async send(message, workspace, params, { signal, uuid, isActive = () => true } = {}) {
+    async send(message, workspace, params, { signal, uuid, isActive = () => true, appendImage } = {}) {
       const allowed = () => !signal?.aborted && isActive() && canSend(message) && workspace === getDirectory(message.key);
       if (!allowed()) throw mediaError('MEDIA_SEND_DENIED');
       try {
         const { bytes, name } = await readOutgoing(workspace, params.path);
         if (!allowed()) throw mediaError('MEDIA_SEND_DENIED');
-        const image = !params.asFile && imageType(bytes) && bytes.length <= 10 * 1024 * 1024;
+        const image = !params.asFile && !!imageType(bytes);
+        if (image && bytes.length > 10 * 1024 * 1024) throw mediaError('MEDIA_IMAGE_TOO_LARGE');
+        if (image && typeof appendImage !== 'function') throw mediaError('MEDIA_CARD_REQUIRED');
         const key = image ? await transport.uploadImage(bytes, { signal }) : await transport.uploadFile(bytes, name, { signal });
         if (!allowed()) throw mediaError('MEDIA_SEND_DENIED');
-        const id = await transport.send(message, image ? 'image' : 'file', image ? { image_key: key } : { file_key: key }, { signal, uuid });
-        return { messageId: id, name, kind: image ? 'image' : 'file' };
+        const id = image ? await appendImage({ key, name }, { isActive: allowed })
+          : await transport.send(message, 'file', { file_key: key }, { signal, uuid });
+        return { messageId: id, name, kind: image ? 'image' : 'file', ...(image ? { delivery: 'inline_card' } : {}) };
       } catch (error) { if (typeof error?.code === 'string' && error.code.startsWith('MEDIA_')) throw error; throw mediaError('MEDIA_SEND_FAILED'); }
     },
   };

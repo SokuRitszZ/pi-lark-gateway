@@ -128,11 +128,15 @@ test('uploads image or ordinary file, then replies to bound message; policy is r
     async send(m, type, content, options) { calls.push({ m, type, content, options }); return 'om_result'; } };
   const media = createMedia({ base, getDirectory, transport, canSend: () => allowed });
   const message = { id: 'om_input', key: 'key' };
-  assert.equal((await media.send(message, dir, { path: 'attachments/outbox/x.png' }, { uuid: 'test' })).kind, 'image');
+  const appendImage = async image => { calls.push({ m: message, content: { image_key: image.key }, inline: true }); return 'om_card'; };
+  await assert.rejects(media.send(message, dir, { path: 'attachments/outbox/x.png' }), { code: 'MEDIA_CARD_REQUIRED' });
+  assert.equal(calls.length, 0, 'no upload or separate send without a current card');
+  const inline = await media.send(message, dir, { path: 'attachments/outbox/x.png' }, { uuid: 'test', appendImage });
+  assert.equal(inline.kind, 'image'); assert.equal(inline.delivery, 'inline_card'); assert.equal(inline.messageId, 'om_card');
   assert.deepEqual(calls[1].content, { image_key: 'img_key' }); assert.equal(calls[1].m.id, 'om_input');
   assert.equal((await media.send(message, dir, { path: 'attachments/outbox/x.mp4' })).kind, 'file');
   transport.uploadImage = async () => { allowed = false; return 'img_uploaded'; };
-  await assert.rejects(media.send(message, dir, { path: 'attachments/outbox/x.png' }), { code: 'MEDIA_SEND_DENIED' });
+  await assert.rejects(media.send(message, dir, { path: 'attachments/outbox/x.png' }, { appendImage }), { code: 'MEDIA_SEND_DENIED' });
   assert.equal(calls.length, 4);
   await assert.rejects(media.send(message, getDirectory('other'), { path: 'attachments/outbox/x.png' }), { code: 'MEDIA_SEND_DENIED' });
 });

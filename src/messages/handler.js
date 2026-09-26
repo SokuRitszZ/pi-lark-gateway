@@ -34,7 +34,7 @@ export function createMessageHandler({ answer, reply, beginResponse, command = (
               await sleep(m.debugSleepMs);
               output = `debug sleep ${m.debugSleepMs}ms done`;
             } else {
-              output = m.text || m.attachments?.length ? await answer(m.key, m.text, event => progress?.event(event), { message: m, summarizeIntent: progress?.summarizeIntent === true, tools: getTools(m), onSession: progress?.onSession }) : '未找到可处理的文字或附件。暂不支持表情包、卡片内资源及合并转发附件，请直接发送图片或文件。';
+              output = m.text || m.attachments?.length ? await answer(m.key, m.text, event => progress?.event(event), { message: m, appendImage: progress?.appendImage, summarizeIntent: progress?.summarizeIntent === true, tools: getTools(m), onSession: progress?.onSession }) : '未找到可处理的文字或附件。暂不支持表情包、卡片内资源及合并转发附件，请直接发送图片或文件。';
             }
           }
           if (progress) await progress.finish(output);

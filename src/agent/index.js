@@ -6,12 +6,12 @@ import { createRunControl } from './run-control.js';
 
 export { sessionDirectory } from './session-lifecycle.js';
 
-export async function createAgent(base, model, { getAnswerTimeoutMs = () => 0, log = () => {}, pool: injectedPool, prepareInput, getCustomTools = () => [] } = {}) {
+export async function createAgent(base, model, { getAnswerTimeoutMs = () => 0, log = () => {}, pool: injectedPool, createPool = createSessionPool, prepareInput, getCustomTools = () => [] } = {}) {
   const turns = new AsyncLocalStorage();
-  const pool = injectedPool || await createSessionPool(base, model, { log, getCustomTools: dir => getCustomTools(dir, () => turns.getStore()) });
+  const pool = injectedPool || await createPool(base, model, { log, getCustomTools: dir => getCustomTools(dir, () => turns.getStore()) });
   return {
-    async answer(key, text, onEvent, { summarizeIntent: summarize = false, tools = 'none', onSession = () => {}, message } = {}) {
-      const turn = { active: true, message, tools };
+    async answer(key, text, onEvent, { summarizeIntent: summarize = false, tools = 'none', onSession = () => {}, message, appendImage } = {}) {
+      const turn = { active: true, message, tools, appendImage };
       return pool.run(key, tools, session => turns.run(turn, async () => {
         const title = summarize
           ? summarizeIntent(pool.modelRuntime, session.model, text, base)

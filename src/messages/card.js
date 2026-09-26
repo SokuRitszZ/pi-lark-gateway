@@ -1,11 +1,12 @@
 export const CARD_COLORS = { waiting: 'grey', thinking: 'blue', success: 'green', error: 'red', stopped: 'orange' };
-export function responseCard(title, text, state, controlId) {
+export function responseCard(title, text, state, controlId, images = []) {
   return {
     // Headings, quotes and tables require Card JSON 2.0, not just tag: markdown.
     schema: '2.0',
     config: { width_mode: 'fill', update_multi: true },
     header: { template: CARD_COLORS[state], title: { tag: 'plain_text', content: title || '正在整理意图…' } },
-    body: { elements: [{ tag: 'markdown', content: text }, ...(state === 'thinking' && controlId ? [
+    body: { elements: [{ tag: 'markdown', content: text }, ...images.map(image => ({ tag: 'img', img_key: image.key,
+      alt: { tag: 'plain_text', content: image.name }, scale_type: 'fit_horizontal', preview: true })), ...(state === 'thinking' && controlId ? [
       { tag: 'form', name: 'interrupt', elements: [
         { tag: 'column_set', flex_mode: 'none', horizontal_spacing: 'small', columns: [
           { tag: 'column', width: 'auto', vertical_align: 'center', elements: [

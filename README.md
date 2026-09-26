@@ -22,7 +22,7 @@ npm start
 npm run verify
 ```
 
-网络需要代理时设置 `HTTPS_PROXY` / `HTTP_PROXY`。默认复用 `~/.pi/agent` 的模型凭据。会话策略 `tools: "none"` 禁用工具、扩展和 Skills；`tools: "all"` 开放 pi 默认工具并加载本机扩展、Skills 和上下文。支持文字、富文本、图片及文件/音视频附件。图片下载后直接作为视觉输入传给支持图片的模型；其余文件保存到会话附件目录，不自动转写或解析。`tools:all` 提供 `gateway_send_file` 向当前会话发送图片或文件，默认工具关闭不变。详见 [多媒体收发](docs/MEDIA.md)。
+网络需要代理时设置 `HTTPS_PROXY` / `HTTP_PROXY`。默认复用 `~/.pi/agent` 的模型凭据。会话策略 `tools: "none"` 禁用工具、扩展和 Skills；`tools: "all"` 开放 pi 默认工具并加载本机扩展、Skills 和上下文。支持文字、富文本、图片及文件/音视频附件。图片下载后直接作为视觉输入传给支持图片的模型；其余文件保存到会话附件目录，不自动转写或解析。`tools:all` 提供 `gateway_send_file`：图片嵌入当前回复卡片（需 `replyMode: "card"`），不另发图片消息；其他文件仍作为附件发送。默认工具关闭不变。详见 [多媒体收发](docs/MEDIA.md)。
 
 ## 安装、部署和发布
 

@@ -3,6 +3,8 @@ const messages = {
   MEDIA_TOO_LARGE: '附件超过网关限制：单文件及单条消息附件合计最多 30 MiB，请压缩或分开发送。',
   MEDIA_EMPTY: '附件为空，未处理。',
   MEDIA_DOWNLOAD_FAILED: '附件下载失败。请检查消息资源下载权限、机器人是否能访问该文件，以及文件是否已撤回或受保密限制。',
+  MEDIA_IMAGE_TOO_LARGE: '卡片图片上传最多 10 MiB，请压缩图片；不会自动改成独立文件消息发送。',
+  MEDIA_CARD_REQUIRED: '图片只能嵌入当前回复卡片。请将当前会话 replyMode 设为 card 后重试；不会另发图片消息。',
   MEDIA_SEND_FAILED: '附件上传或发送未确认成功。请检查权限与当前聊天记录；不要自动重试，以免重复发送。',
   MEDIA_PATH_DENIED: '只能发送当前会话 attachments/inbox 或 attachments/outbox 中的普通文件；禁止链接、目录及其他主机路径。',
   MEDIA_STORAGE_FULL: '网关附件收件箱已达到 512 MiB 配额，请管理员检查并清理不再需要的附件后重试。',

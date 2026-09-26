@@ -37,6 +37,21 @@ function fixture() {
 }
 const card = (text, state = 'thinking', title = '标题') => responseCard(title, text, state, 'run');
 
+for (const fallback of [false, true]) test(`inline images remain on the original card across native text updates and fallback=${fallback}`, async () => {
+  const f = fixture();
+  const response = await createCardResponse({}, { createCardStream: () => f.transport }, () => {});
+  response.event({ type: 'agent_start' });
+  if (fallback) f.fail.update = true;
+  assert.equal(await response.appendImage({ key: 'img_inline', name: 'result.png' }), 'message-1');
+  response.event({ type: 'message_start', message: { role: 'assistant', content: [{ type: 'text', text: '图片说明' }] } });
+  await response.finish('图片说明');
+  const shown = f.displayed('message-1');
+  assert.equal(shown.body.elements.filter(element => element.tag === 'img').length, 1);
+  assert.equal(shown.body.elements.find(element => element.tag === 'img').img_key, 'img_inline');
+  assert.match(shown.body.elements[0].content, /图片说明/);
+  assert.equal(f.calls.filter(call => call.kind === 'send').length, 1);
+});
+
 test('native append uses cumulative text, stable element id, shared increasing sequence and rate spacing', async () => {
   const f = fixture(), id = await f.transport.send(card('hello'));
   await f.transport.edit(id, card('hello world'));
