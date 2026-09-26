@@ -8,7 +8,6 @@ on:
 permissions:
   contents: read
 concurrency:
-  # Distinct pushes must not replace pending runs in GitHub's concurrency queue.
   group: release-run-${{ github.run_id }}
   cancel-in-progress: false
 jobs:
@@ -24,18 +23,29 @@ jobs:
       tag: ${{ steps.meta.outputs.tag }}
       commit: ${{ steps.meta.outputs.commit }}
       version: ${{ steps.meta.outputs.version }}
-      artifactName: ${{ steps.meta.outputs.artifactName }}
+      artifactName: ${{ steps.meta.outputs.artifact-name }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.merge_commit_sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24.21.0'
       - id: meta
-        run: node scripts/ci-release.js metadata
+        uses: SokuRitszZ/npm-release-action@5c5679ea86d68f72df2e82f1e1c1275dd9c3c09d
+        with:
+          phase: plan
+          working-directory: '.'
+          release-branch-prefix: 'release/'
+          main-branch: main
+          prerelease-id: beta
+          prerelease-tag: beta
+          stable-tag: latest
+          tag-prefix: v
+          registry-url: 'https://registry.npmjs.org/'
+          access: public
+          shrinkwrap: 'true'
+          source-archive: 'true'
+          dry-run: 'true'
       - if: vars.NPM_PUBLISH_ENABLED != 'true'
         run: echo '::notice::Publication is disabled. Configure npm trusted publisher and set NPM_PUBLISH_ENABLED=true to enable npm and GitHub Release.'
   verify:
@@ -48,7 +58,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
       PI_OFFLINE: '1'
       PI_TELEMETRY: '0'
     steps:
@@ -63,17 +72,32 @@ jobs:
           cache: npm
       - run: npm install --global npm@11.12.1 --ignore-scripts
       - run: npm ci --ignore-scripts
-      - run: node scripts/ci-release.js build
+      - id: bundle
+        uses: SokuRitszZ/npm-release-action@5c5679ea86d68f72df2e82f1e1c1275dd9c3c09d
+        with:
+          phase: build
+          version: ${{ needs.prepare.outputs.version }}
+          working-directory: '.'
+          release-branch-prefix: 'release/'
+          main-branch: main
+          prerelease-id: beta
+          prerelease-tag: beta
+          stable-tag: latest
+          tag-prefix: v
+          registry-url: 'https://registry.npmjs.org/'
+          access: public
+          shrinkwrap: 'true'
+          source-archive: 'true'
+          dry-run: 'true'
       - name: Smoke test the exact npm artifact (no repack)
-        run: npm run smoke:npm -- --artifact "dist/npm/pi-lark-gateway-${RELEASE_VERSION}.tgz" --expected-version "$RELEASE_VERSION"
+        env:
+          NPM_ARTIFACT: ${{ steps.bundle.outputs.npm-file }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: npm run smoke:npm -- --artifact "$NPM_ARTIFACT" --expected-version "$RELEASE_VERSION"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ needs.prepare.outputs.artifactName }}
-          path: |
-            dist/*.tar.gz
-            dist/*.sha256
-            dist/npm/*.tgz
-            dist/npm/*.sha256
+          path: ${{ steps.bundle.outputs.artifact-directory }}
           if-no-files-found: error
           retention-days: 30
   publish-npm:
@@ -85,9 +109,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    env:
-      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
-      NPM_PUBLISH_ENABLED: ${{ vars.NPM_PUBLISH_ENABLED }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -101,16 +122,30 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.prepare.outputs.artifactName }}
-          path: dist
-      - run: node scripts/publish-npm.js
+          path: ${{ runner.temp }}/npm-release
+      - uses: SokuRitszZ/npm-release-action@5c5679ea86d68f72df2e82f1e1c1275dd9c3c09d
+        with:
+          phase: publish-npm
+          version: ${{ needs.prepare.outputs.version }}
+          working-directory: '.'
+          release-branch-prefix: 'release/'
+          main-branch: main
+          prerelease-id: beta
+          prerelease-tag: beta
+          stable-tag: latest
+          tag-prefix: v
+          registry-url: 'https://registry.npmjs.org/'
+          access: public
+          shrinkwrap: 'true'
+          source-archive: 'true'
+          dry-run: 'false'
   github-release:
+    if: vars.NPM_PUBLISH_ENABLED == 'true'
     needs: [prepare, build, publish-npm]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
-    env:
-      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -120,17 +155,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24.21.0'
+      - run: npm install --global npm@11.12.1 --ignore-scripts
       - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.prepare.outputs.artifactName }}
-          path: dist
-      - uses: actions/github-script@v7
+          path: ${{ runner.temp }}/npm-release
+      - uses: SokuRitszZ/npm-release-action@5c5679ea86d68f72df2e82f1e1c1275dd9c3c09d
         with:
-          script: |
-            try {
-              const { pathToFileURL } = require('node:url');
-              const module = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/scripts/github-release.js`).href);
-              await module.runGitHubRelease({ github, context });
-            } catch {
-              core.setFailed('GitHub Release failed: check event/version plan, artifact integrity and existing immutable assets. Re-run failed jobs with the original artifact; do not clobber assets.');
-            }
+          phase: publish-github
+          version: ${{ needs.prepare.outputs.version }}
+          working-directory: '.'
+          release-branch-prefix: 'release/'
+          main-branch: main
+          prerelease-id: beta
+          prerelease-tag: beta
+          stable-tag: latest
+          tag-prefix: v
+          registry-url: 'https://registry.npmjs.org/'
+          access: public
+          shrinkwrap: 'true'
+          source-archive: 'true'
+          dry-run: 'false'
+          github-token: ${{ github.token }}

@@ -23,17 +23,21 @@ pi-lark-gateway --help
 
 ### 源码包安装
 
-从维护者可信渠道获取 `pi-lark-gateway-<版本>.tar.gz` 与 `.sha256`；SHA 文件也必须来自可信渠道。
+GitHub Release 使用共享 Action 产物：`pi-lark-gateway-<版本>-source.tar.gz`、npm `.tgz`、`SHA256SUMS` 和 `bundle.json`。校验文件也必须来自可信渠道。
 
 ```bash
-# macOS；Linux 可用 sha256sum -c
-shasum -a 256 -c pi-lark-gateway-<版本>.tar.gz.sha256
-tar -xzf pi-lark-gateway-<版本>.tar.gz
-cd pi-lark-gateway-<版本>
+# 下载源码包、npm tgz 和 SHA256SUMS 到同一目录；macOS 校验如下
+# Linux 可用 sha256sum -c SHA256SUMS
+shasum -a 256 -c SHA256SUMS
+# 建议解压到一个新的版本目录，避免覆盖已有 source/ 目录
+tar -xzf pi-lark-gateway-<版本>-source.tar.gz
+cd source
 node --version
 npm ci --ignore-scripts
 npm run verify
 ```
+
+本地旧 `release:pack` 命令仍生成 `pi-lark-gateway-<版本>.tar.gz` 和独立 `.sha256`，顶层目录为包名加版本；不要与上述共享 Action 格式混用。
 
 版本目录可以放在 `~/.local/opt/pi-lark-gateway/`。保留 `package-lock.json`，部署不要改用 `npm update` 或拷贝别的 OS 的 `node_modules`。依赖无需安装生命周期脚本，使用 `--ignore-scripts`。仅解压你信任的包。
 

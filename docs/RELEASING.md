@@ -23,7 +23,13 @@
 
 `.github/workflows/release.yml`：release 分支 push / release PR merged → 校验 GitHub 事件及源 commit → 复用 Linux/macOS × Node 22.21.0/24 测试矩阵 → 按分支版本构建源码包与 npm 包 → 校验版本/commit/SHA → 安装 smoke **同一份 npm tgz** → npm OIDC 发布 → GitHub Release。
 
-`.github/workflows/ci.yml` 仍负责普通分支 push/PR/手动验证，只有只读权限，不发布。
+四个阶段直接复用 `SokuRitszZ/npm-release-action@5c5679ea86d68f72df2e82f1e1c1275dd9c3c09d`，分别调用 `plan`、`build`、`publish-npm`、`publish-github`。固定 SHA 包含单数字 beta 及原生 npm version，不使用尚未更新的 `v1` 标签。
+
+各阶段参数一致：包目录 `.`、分支前缀 `release/`、主分支 `main`、预发布标识/channel `beta`、正式 channel `latest`、Git 标签前缀 `v`、registry `https://registry.npmjs.org/`、access `public`、shrinkwrap/source-archive 均为 `true`。只有通过发布开关的上传阶段使用 `dry-run: false`。
+
+构建后使用 Action 的 `npm-file` 输出进行网关安装 smoke，整个 `artifact-directory` 上传；发布阶段下载到 `$RUNNER_TEMP/npm-release`，不重建。附件为 npm `.tgz`、`*-source.tar.gz`、`SHA256SUMS` 和 `bundle.json`，源码包顶层目录为 `source/`；版本、源 commit 和 sourceVersion 在 bundle 元数据中，不再依赖旧的包内 release-manifest/npm-release.json。源码归档包含全部 tracked 文件，新增敏感文件前必须审查；不要提交本地配置。通用 Action 保留 package scripts，但 pack/publish 均禁用 hooks；npm 安装用户应使用 CLI，不运行源码发布命令。
+
+`.github/workflows/ci.yml` 仍负责普通分支 push/PR/手动验证，只有只读权限，不发布。旧本地打包脚本作为手工验证/备用工具保留，不再被 release workflow 调用。
 
 不同 push 使用不同并发组，不会因“只保留一个 pending run”而丢掉中间更新。GitHub runner 资源不足时排队；失败的更新不会发布。并发构建可能完成顺序不同，`beta` channel 指向最后成功上传的版本，不保证是最后一次 push；验收应安装明确的完整 beta 版本号。不同正式版本请按顺序合并、验收，避免同时竞争 latest。
 
@@ -33,7 +39,7 @@
 
 ### GitHub 与发布授权
 
-仓库：https://github.com/SokuRitszZ/pi-lark-gateway （私有）。先将本流程代码合入 main，再从包含新 workflow 的提交创建 release 分支。
+仓库：https://github.com/SokuRitszZ/pi-lark-gateway （公开）。先将本流程代码合入 main，再从包含新 workflow 的提交创建 release 分支。
 
 许可证暂为 `UNLICENSED`，不等于开源授权；开启公开分发前须由权利人确认许可/分发权、npm 包名控制权和安全联系人。不要提交配置、模型凭据、会话、备份或日志。
 
@@ -59,7 +65,7 @@ GitHub 创建 `npm-publish` environment，允许 **release/* 分支和 main 分�
 
 只给 npm job `id-token: write`，不要加长期 `NPM_TOKEN` / `NODE_AUTH_TOKEN`；OIDC 失败不会自动降级为 token。只给最终 GitHub Release job `contents: write`；无需给构建 job 推送版本提交的权限。
 
-使用 GitHub-hosted runner、Node 24.21.0 和 npm 11.12.1。CI 给 npm 包写入真实 repository 元数据；符合 npm 条件时自动生成 provenance，私有源仓库的限制以官方规则为准。
+使用 GitHub-hosted runner、Node 24.21.0 和 npm 11.12.1。package.json 已配置网关真实 repository 元数据，共享 Action 原样保留；npm Trusted Publisher 仍绑定网关仓库的 `release.yml` / `npm-publish`，而不是 Action 仓库。符合 npm 条件时自动生成 provenance。
 
 最后设置 GitHub Actions **仓库变量** `NPM_PUBLISH_ENABLED=true`。实际授权、首次建包和环境配置不是 workflow 文件能自动凭空完成的。
 

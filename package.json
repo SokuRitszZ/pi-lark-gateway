@@ -3,6 +3,7 @@
   "version": "1.0.0-rc.1",
   "description": "Self-hosted Feishu gateway for the Pi coding agent SDK",
   "license": "UNLICENSED",
+  "repository": { "type": "git", "url": "git+https://github.com/SokuRitszZ/pi-lark-gateway.git" },
   "bin": { "pi-lark-gateway": "bin/pi-lark-gateway.js" },
   "files": ["bin/", "src/", "scripts/doctor.js", "scripts/backup.js", "docs/", "deploy/", "CHANGELOG.md", "SECURITY.md"],
   "publishConfig": { "registry": "https://registry.npmjs.org/", "access": "public" },
