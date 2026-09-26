@@ -86,7 +86,7 @@ test('shorter canonical text clears obsolete continuation content instead of lea
     if (id !== 'card-0') assert.equal(body(card), '内容已合并至前面的卡片。');
   }
 });
-test('full latest operation spans balanced code blocks and disappears from every card when done', async t => {
+test('full latest operation survives completion and disappears from every card when subsequent text arrives', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const { response, cards } = await fixture();
   const command = `printf '%s' '${'长😀\\\\"'.repeat(10000)}'`;
@@ -103,7 +103,11 @@ test('full latest operation spans balanced code blocks and disappears from every
   assert.equal(chunks.join(''), command);
   response.event({ type: 'tool_execution_end', toolCallId: 'long' });
   await flush(t);
-  assert.equal(body(cards.get('card-0')), '✅ bash');
+  assert.ok(body(cards.get('card-0')).startsWith('✅ bash：'));
+  assert.match(body(cards.get('card-0')), /printf/);
+  assert.ok([...cards.values()].every(card => /```text/.test(body(card))));
+  response.event({ type: 'message_end', message: msg('完成') });
+  await flush(t);
   for (const card of cards.values()) assert.doesNotMatch(body(card), /printf|长😀|```/);
   await response.finish('完成');
   assert.equal(body(cards.get('card-0')), '✅ bash\n\n完成');

@@ -37,7 +37,7 @@ export function createTimeline() {
         const calls = block.calls, last = calls.at(-1);
         const status = ['⏳', '❌', '⏹', '✅'].find(value => calls.some(call => call.status === value));
         text = `${status} ${last.name}${calls.length > 1 ? ` ×${calls.length}` : ''}`;
-        if (last === latestTool && last.status === '⏳' && last.preview) text += `：\n\n${operationBlock(last.preview)}`;
+        if (block === blocks.at(-1) && last === latestTool && last.preview) text += `：\n\n${operationBlock(last.preview)}`;
       }
       result += (result ? previous === 'tool' && block.type === 'tool' ? '\n' : '\n\n' : '') + text;
       previous = block.type;
@@ -82,7 +82,6 @@ export function createTimeline() {
         const entry = tools.get(event.toolCallId);
         if (!entry) return false;
         entry.status = event.isError ? '❌' : '✅';
-        delete entry.preview;
         return true;
       }
       return ['agent_start', 'intent_title'].includes(event.type);
@@ -104,7 +103,6 @@ export function createTimeline() {
       }
       for (const entry of entries) if (entry.type === 'tool') {
         if (entry.status === '⏳') entry.status = '⏹';
-        delete entry.preview;
       }
       return render();
     },

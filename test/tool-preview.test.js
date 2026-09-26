@@ -13,7 +13,7 @@ test('adjacent same-kind calls collapse with multiplication count and only newes
   start(timeline, 'b', 'bash', { command: 'npm run check' });
   assert.equal(timeline.render(), '⏳ bash ×2：\n\n```text\nnpm run check\n```');
   end(timeline, 'b');
-  assert.equal(timeline.render(), '✅ bash ×2');
+  assert.equal(timeline.render(), '✅ bash ×2：\n\n```text\nnpm run check\n```');
   assert.equal(timeline.finish('完成'), '✅ bash ×2\n\n完成');
 });
 test('only the latest invocation globally has a preview, even when older calls finish later', () => {
@@ -21,7 +21,7 @@ test('only the latest invocation globally has a preview, even when older calls f
   start(timeline, 'a', 'read', { path: 'old.js' });
   start(timeline, 'b', 'bash', { command: 'npm run verify' });
   end(timeline, 'b'); end(timeline, 'a');
-  assert.equal(timeline.render(), '✅ read\n✅ bash');
+  assert.equal(timeline.render(), '✅ read\n✅ bash：\n\n```text\nnpm run verify\n```');
   start(timeline, 'c', 'read', { path: 'new.js' });
   assert.equal(timeline.render(), '✅ read\n✅ bash\n⏳ read：\n\n```text\nnew.js\n```');
 });
@@ -30,7 +30,7 @@ test('visible assistant text separates groups, but empty assistant tool messages
   start(timeline, 'a', 'read', { path: 'a.js' }); end(timeline, 'a');
   text(timeline, ''); start(timeline, 'b', 'read', { path: 'b.js' }); end(timeline, 'b');
   text(timeline, '中间说明'); start(timeline, 'c', 'read', { path: 'c.js' }); end(timeline, 'c');
-  assert.equal(timeline.render(), '✅ read ×2\n\n中间说明\n\n✅ read');
+  assert.equal(timeline.render(), '✅ read ×2\n\n中间说明\n\n✅ read：\n\n```text\nc.js\n```');
 });
 test('group status preserves pending, failures and unfinished calls without changing latest preview', () => {
   const timeline = createTimeline();
@@ -39,9 +39,23 @@ test('group status preserves pending, failures and unfinished calls without chan
   start(timeline, 'b', 'bash', { command: 'duplicate' });
   end(timeline, 'a', true);
   assert.equal(timeline.render(), '⏳ bash ×2：\n\n```text\nlast\n```');
-  end(timeline, 'b'); assert.equal(timeline.render(), '❌ bash ×2');
+  end(timeline, 'b'); assert.equal(timeline.render(), '❌ bash ×2：\n\n```text\nlast\n```');
   const stopped = createTimeline(); start(stopped, 'a', 'read', { path: 'file.js' });
   assert.equal(stopped.finish('已停止', { terminal: true }), '⏹ read\n\n已停止');
+});
+test('completed details remain until actual subsequent text is visible, not an empty message event', () => {
+  const timeline = createTimeline();
+  start(timeline, 'a', 'bash', { command: 'npm test' }); end(timeline, 'a');
+  timeline.event({ type: 'message_start', message: { role: 'assistant', content: [] } });
+  assert.match(timeline.render(), /npm test/);
+  timeline.event({ type: 'message_update', assistantMessageEvent: { type: 'text_delta', delta: '检查完成' } });
+  assert.equal(timeline.render(), '✅ bash\n\n检查完成');
+  end(timeline, 'a'); assert.doesNotMatch(timeline.render(), /npm test/);
+});
+test('a turn with no subsequent text retains the last operation even after completion', () => {
+  const timeline = createTimeline();
+  start(timeline, 'a', 'read', { path: 'file.js' }); end(timeline, 'a', true);
+  assert.equal(timeline.finish(''), '❌ read：\n\n```text\nfile.js\n```');
 });
 test('operation preview is complete and preserves newlines, indentation and tabs', () => {
   assert.equal(toolPreview('bash', { command: 'x'.repeat(15000) }), 'x'.repeat(15000));
@@ -75,6 +89,6 @@ test('a finished latest tool never falls back to showing an older running operat
   const timeline = createTimeline();
   start(timeline, 'a', 'bash', { command: 'old running command' });
   start(timeline, 'b', 'bash', { command: 'new command' }); end(timeline, 'b');
-  assert.equal(timeline.render(), '⏳ bash ×2');
+  assert.equal(timeline.render(), '⏳ bash ×2：\n\n```text\nnew command\n```');
   assert.equal(timeline.finish('done'), '⏹ bash ×2\n\ndone');
 });
