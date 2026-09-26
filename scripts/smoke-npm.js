@@ -32,7 +32,7 @@ try {
   check(['setup', '--help'], 0, /默认白名单审批/);
   check(['setup', '--permissions'], 0, /im.message.receive_v1/);
   const permissions = JSON.parse(check(['setup', '--permissions-json'], 0, /cardkit:card:write/).stdout);
-  if (permissions.scopes.tenant.length !== 6 || permissions.scopes.user.length || permissions.scopes.tenant.includes('im:message.group_msg')) throw new Error('npm_permissions_manifest_invalid');
+  if (permissions.scopes.tenant.length !== 8 || permissions.scopes.user.length || permissions.scopes.tenant.includes('im:message.group_msg')) throw new Error('npm_permissions_manifest_invalid');
   check(['doctor', '--help'], 0, /不联网/);
   check(['backup', '--help'], 0, /必须先停服务/);
   check(['restart', '--help'], 0, /登记延迟重启任务/);

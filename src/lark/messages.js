@@ -41,7 +41,19 @@ export function createReplies(client, threads, log) {
     const result = await client.im.v1.message.patch({ path: { message_id: id }, data: { content: JSON.stringify(card) } });
     if (result.code !== 0) throw new Error('card_edit_failed');
   }
-  return { sendReply, reply, edit, sendCardReply, editCard,
+  async function sendResourceReply(message, type, content, { uuid } = {}) {
+    const result = await client.im.v1.message.reply({ path: { message_id: message.id }, data: {
+      msg_type: type, content: JSON.stringify(content), uuid,
+      ...(message.isGroup ? { reply_in_thread: true } : {}),
+    } });
+    if (result.code !== 0 || !result.data?.message_id) throw new Error('resource_send_failed');
+    if (message.isGroup && result.data.thread_id) {
+      threads.roots.set(`${message.chatId}:${result.data.thread_id}`, message.root);
+      await threads.save().catch(() => log('thread_mapping_save_failed'));
+    }
+    return result.data.message_id;
+  }
+  return { sendReply, reply, edit, sendCardReply, editCard, sendResourceReply,
     createCardStream: message => createStreamingCards({ client, log,
       send: (card, options) => sendCardReply(message, card, options), edit: editCard,
     }),

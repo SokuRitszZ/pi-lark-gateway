@@ -4,8 +4,9 @@ import os from 'node:os';
 import { defaultConfigPath, migrateConfig, loadConfig, watchConfig } from '../config/index.js';
 import { createMessageHandler, createThreadStore, createResponse } from '../messages/index.js';
 import { createApprovals } from '../approvals/index.js';
-import { createAgent } from '../agent/index.js';
-import { createConnection, createMetadata, createCards, createReplies, createReactions } from '../lark/index.js';
+import { createAgent, sessionDirectory } from '../agent/index.js';
+import { createMedia, createMediaTool } from '../media/index.js';
+import { createConnection, createMetadata, createCards, createReplies, createReactions, createResources } from '../lark/index.js';
 import { createRouter } from './route.js';
 import { createControls, canControlResponse } from '../controls/index.js';
 import { createRestartControl, createRestartCommand } from '../restart/index.js';
@@ -27,11 +28,20 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
       bot: { ...snapshot.config.bot, openId: snapshot.config.bot.openId || botInfo.openId } } };
   };
   const threads = await createThreadStore(base);
+  const replies = createReplies(connection.client, threads, log);
+  const getTools = message => {
+    const state = settings.get();
+    return (message.isGroup ? state.groups[message.chatId] || state.config.access.groups : state.config.access.private).tools;
+  };
+  const media = createMedia({ base, getDirectory: key => sessionDirectory(base, key),
+    transport: createResources(connection.client, replies.sendResourceReply),
+    canSend: message => getTools(message) === 'all' && canControlResponse(message, message.userId, getState(), approvals),
+  });
   const agent = await createAgent(base, config.model, {
-    log,
+    log, prepareInput: media.prepare,
+    getCustomTools: (dir, getTurn) => [createMediaTool(dir, getTurn, media.send)],
     getAnswerTimeoutMs: () => settings.get().config.answerTimeoutMs ?? 0,
   });
-  const replies = createReplies(connection.client, threads, log);
   const controls = createControls({ log, canControl: (message, user) => canControlResponse(message, user, getState(), approvals) });
   let restartControl, ready = false;
   const handler = createMessageHandler({
@@ -40,10 +50,7 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
       schedule: () => { if (!restartControl) throw new Error('restart_unavailable'); return restartControl.schedule(); }, log,
     }),
     log, threadRoots: threads.roots, reply: replies.reply,
-    getTools: message => {
-      const state = settings.get();
-      return (message.isGroup ? state.groups[message.chatId] || state.config.access.groups : state.config.access.private).tools;
-    },
+    getTools,
     beginResponse: createResponse(replies, log, message => {
       const state = settings.get();
       const policy = message.isGroup ? (state.groups[message.chatId] || state.config.access.groups) : state.config.access.private;

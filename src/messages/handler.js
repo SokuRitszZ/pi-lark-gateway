@@ -1,4 +1,5 @@
 import { normalizeEvent } from './normalize.js';
+import { mediaErrorText } from '../media/index.js';
 
 export const REACTION_EMOJIS = ['SMILE', 'THUMBSUP', 'OK', 'HEART', 'CLAP'];
 const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -33,7 +34,7 @@ export function createMessageHandler({ answer, reply, beginResponse, command = (
               await sleep(m.debugSleepMs);
               output = `debug sleep ${m.debugSleepMs}ms done`;
             } else {
-              output = m.text ? await answer(m.key, m.text, event => progress?.event(event), { summarizeIntent: progress?.summarizeIntent === true, tools: getTools(m), onSession: progress?.onSession }) : '目前支持文字和富文本消息，图片、语音和文件解析还未接入。';
+              output = m.text || m.attachments?.length ? await answer(m.key, m.text, event => progress?.event(event), { message: m, summarizeIntent: progress?.summarizeIntent === true, tools: getTools(m), onSession: progress?.onSession }) : '未找到可处理的文字或附件。暂不支持表情包、卡片内资源及合并转发附件，请直接发送图片或文件。';
             }
           }
           if (progress) await progress.finish(output);
@@ -42,10 +43,10 @@ export function createMessageHandler({ answer, reply, beginResponse, command = (
         } catch (error) {
           const reason = error?.code;
           log(reason === 'ANSWER_TIMEOUT' ? 'message_timed_out' : reason === 'ANSWER_ABORTED' ? 'message_aborted' : 'message_failed');
-          const errorText = reason === 'ANSWER_TIMEOUT' ? '本次回复已达到配置的超时时长，已停止。'
+          const errorText = mediaErrorText(reason) || (reason === 'ANSWER_TIMEOUT' ? '本次回复已达到配置的超时时长，已停止。'
             : reason === 'ANSWER_ABORTED' ? '当前回复已停止。'
             : reason === 'MODEL_FAILED' ? '模型生成失败，请稍后再试。'
-            : '暂时处理失败，请稍后再试。';
+            : '暂时处理失败，请稍后再试。');
           if (progress) await progress.finish(errorText, { error: true }).catch(() => reply(m, errorText).catch(() => {}));
           else await reply(m, errorText).catch(() => {});
         } finally {

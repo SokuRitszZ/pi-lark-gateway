@@ -1,4 +1,5 @@
-export async function generateAnswer(session, text, onEvent, timeoutMs = 0) {
+export async function generateAnswer(session, text, onEvent, timeoutMs = 0, images = []) {
+  if (images.length && !session.model?.input?.includes('image')) throw Object.assign(new Error('vision_unsupported'), { code: 'VISION_UNSUPPORTED' });
   const unsubscribe = session.subscribe(onEvent);
   const start = session.messages.length;
   let timedOut = false;
@@ -7,7 +8,7 @@ export async function generateAnswer(session, text, onEvent, timeoutMs = 0) {
     void Promise.resolve().then(() => session.abort()).catch(() => {});
   }, timeoutMs) : null;
   try {
-    await session.prompt(text, { expandPromptTemplates: false });
+    await session.prompt(text, { expandPromptTemplates: false, ...(images.length ? { images } : {}) });
     const messages = session.messages.slice(start).filter(m => m.role === 'assistant');
     if (timedOut) throw Object.assign(new Error('answer_timeout'), { code: 'ANSWER_TIMEOUT' });
     if (messages.some(m => m.stopReason === 'aborted')) throw Object.assign(new Error('answer_aborted'), { code: 'ANSWER_ABORTED' });

@@ -1,28 +1,42 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createSessionPool } from './sessions.js';
 import { generateAnswer } from './answer.js';
 import { summarizeIntent } from './title.js';
 import { createRunControl } from './run-control.js';
 
-export async function createAgent(base, model, { getAnswerTimeoutMs = () => 0, log = () => {}, pool: injectedPool } = {}) {
-  const pool = injectedPool || await createSessionPool(base, model, { log });
+export { sessionDirectory } from './session-lifecycle.js';
+
+export async function createAgent(base, model, { getAnswerTimeoutMs = () => 0, log = () => {}, pool: injectedPool, prepareInput, getCustomTools = () => [] } = {}) {
+  const turns = new AsyncLocalStorage();
+  const pool = injectedPool || await createSessionPool(base, model, { log, getCustomTools: dir => getCustomTools(dir, () => turns.getStore()) });
   return {
-    async answer(key, text, onEvent, { summarizeIntent: summarize = false, tools = 'none', onSession = () => {} } = {}) {
-      return pool.run(key, tools, async session => {
+    async answer(key, text, onEvent, { summarizeIntent: summarize = false, tools = 'none', onSession = () => {}, message } = {}) {
+      const turn = { active: true, message, tools };
+      return pool.run(key, tools, session => turns.run(turn, async () => {
         const title = summarize
           ? summarizeIntent(pool.modelRuntime, session.model, text, base)
             .catch(() => '对话回复').then(title => onEvent({ type: 'intent_title', title }))
           : Promise.resolve();
-        const control = createRunControl(session);
-        onSession(control);
+        const control = createRunControl(session), inputController = new AbortController();
+        onSession({ ...control, abort() { inputController.abort(); return control.abort(); } });
         try {
-          const output = await generateAnswer(session, text, onEvent, getAnswerTimeoutMs());
+          // Download only after admission/dedup and inside the global session limiter.
+          const input = message && prepareInput ? await prepareInput(message, { tools, signal: inputController.signal }) : { text, images: [] };
+          inputController.signal.throwIfAborted();
+          const output = await generateAnswer(session, input.text, onEvent, getAnswerTimeoutMs(), input.images);
           await Promise.race([title, control.interrupted]);
           return output;
+        } catch (error) {
+          if (inputController.signal.aborted) throw Object.assign(new Error('answer_aborted'), { code: 'ANSWER_ABORTED' });
+          throw error;
         } finally {
+          turn.active = false;
+          inputController.abort();
+          await turn.mediaQueue;
           onSession(null);
           await control.close();
         }
-      });
+      }));
     },
     abort: pool.abort,
     dispose: pool.dispose,

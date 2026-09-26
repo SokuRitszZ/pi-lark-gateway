@@ -9,7 +9,9 @@ export async function createSessionPool(base, model, options = {}) {
   if (model && !resolvedModel) throw new Error('configured_model_not_found');
   const lifecycle = createSessionLifecycle(base, {
     ...options,
-    createSession: (dir, tools, summary) => openConversation(modelRuntime, resolvedModel, dir, tools, summary),
+    createSession: (dir, tools, summary) => openConversation(modelRuntime, resolvedModel, dir, tools, summary, {
+      customTools: tools === 'all' ? options.getCustomTools?.(dir) || [] : [],
+    }),
     summarize: (text, dir) => summarizeArchive(modelRuntime, resolvedModel, text, dir),
   });
   // Also discover expired on-disk sessions that have not been opened since restart.

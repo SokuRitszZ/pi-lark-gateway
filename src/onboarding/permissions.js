@@ -6,6 +6,8 @@ export const PERMISSIONS = Object.freeze([
   { scope: 'im:message.reactions:write_only', level: '增强', purpose: '添加和撤回处理中表情；缺少时不阻断回复' },
   { scope: 'im:chat:read', level: '增强', purpose: '读取审批卡片中的群名称；缺少时使用群 ID' },
   { scope: 'cardkit:card:write', level: '增强', purpose: '原生打字机卡片；缺少时降级为整卡更新' },
+  { scope: 'im:message:readonly', level: '增强', purpose: '下载用户消息内的图片、文件及音视频；不主动检索历史消息' },
+  { scope: 'im:resource:upload', level: '增强', purpose: '上传待发送的图片与文件；模型发送工具仅在 tools:all 时开放' },
   { scope: 'im:message.group_msg', level: '按需敏感', purpose: '仅在需要接收非 @ 群消息时申请；还需显式调整群触发策略' },
 ].map(Object.freeze));
 
@@ -21,7 +23,7 @@ export function permissionsGuide(appId) {
     `权限管理：${link}`,
     '基础权限（默认私聊 + 群 @ 回复）：',
     ...PERMISSIONS.filter(item => item.level === '基础').map(item => `  ${item.scope} — ${item.purpose}`),
-    '增强功能权限（推荐一并开通；缺少可降级）：',
+    '增强功能权限（按需开通；缺少对应功能不可用或降级）：',
     ...PERMISSIONS.filter(item => item.level === '增强').map(item => `  ${item.scope} — ${item.purpose}`),
     '按需敏感权限（默认不要申请）：',
     ...PERMISSIONS.filter(item => item.level === '按需敏感').map(item => `  ${item.scope} — ${item.purpose}`),
@@ -34,7 +36,9 @@ export function permissionsGuide(appId) {
     '说明：send_as_bot 已覆盖当前发送/编辑接口，不必重复申请 im:message:update；',
     '已有 im:message 可覆盖部分发送/编辑/表情接口，但不替代接收事件权限，不建议为此扩大授权。',
     '获取机器人自身信息和 card.action.trigger 无额外 scope；网关使用 open_id，不需通讯录/user_id 权限。',
-    '无需为网关基础能力申请文档、云盘、日历或消息资源下载权限；额外工具按具体用途另行授权。',
+    '附件接收需 im:message:readonly（或接口接受的历史读取权限）；仅有 im:resource 不能替代消息资源下载权限。',
+    '上传也接受已有 im:resource；无需重复申请。图片识别还需视觉模型，音视频仅作为文件，不自动转写。',
+    '无需为网关基础能力申请文档、云盘或日历权限；额外工具按具体用途另行授权。',
     '本流程只提供清单，不申请或变更权限；凭据已保存不等于权限已开通或服务已在线。',
     '完整说明与官方依据：docs/PERMISSIONS.md；可用 setup --permissions-json 输出推荐权限 JSON。',
   ].join('\n');

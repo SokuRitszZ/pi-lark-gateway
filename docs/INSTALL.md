@@ -72,7 +72,7 @@ npm run --silent setup -- --permissions-json
 # npm 全局安装对应：pi-lark-gateway setup --permissions / --permissions-json
 ```
 
-详见 [飞书应用权限清单](PERMISSIONS.md)：基础 3 项、增强 3 项、按需敏感权限、事件/回调及官方依据。以上命令不联网、不读取或覆盖配置，现有用户也可运行。扫码和手动配置完成后都会再次显示检查清单及当前应用的权限管理直达链接；程序不代为申请权限。
+详见 [飞书应用权限清单](PERMISSIONS.md)：基础 3 项、增强 5 项、按需敏感权限、事件/回调及官方依据。以上命令不联网、不读取或覆盖配置，现有用户也可运行。扫码和手动配置完成后都会再次显示检查清单及当前应用的权限管理直达链接；程序不代为申请权限。
 
 ### 扫码创建
 
@@ -99,6 +99,7 @@ npm run setup -- --manual
 - 在**回调配置**中另加 `card.action.trigger` 并使用长连接；否则审批/停止/打断按钮无效。
 - 基础应用权限：`im:message.p2p_msg:readonly`（私聊接收）、`im:message.group_at_msg:readonly`（群 @ 接收）、`im:message:send_as_bot`（发送/回复/编辑文本及卡片）。仅做单一聊天类型时可省略另一接收权限。
 - 推荐增强权限：`im:message.reactions:write_only`（添加/撤回表情）、`im:chat:read`（审批群名称）、`cardkit:card:write`（原生打字机）。缺少时分别省略表情、显示群 ID、降级整卡更新，不阻断基础回复。
+- 多媒体权限：`im:message:readonly`（下载收到的图片/文件）和 `im:resource:upload`（上传图片/文件供发送）。识图还需支持视觉的模型；`tools:none` 仍可识图，但不能调用发送文件工具。详情见 [多媒体收发](MEDIA.md)。
 - 仅接收非 @ 群消息时申请敏感权限 `im:message.group_msg`，再显式配置群触发规则。不要为启动网关额外申请通讯录、云文档或云盘权限；无需重复添加 `im:message:update`，上述发送权限已覆盖当前编辑 API。
 - 发布应用版本、完成租户审批、配置可用范围；将机器人加入测试群，确认能向 owner 发私聊。
 - 扫码未返回 owner 时，先在本地补齐 `access.owner`，否则陌生用户无法申请审批。

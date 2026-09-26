@@ -14,13 +14,17 @@
 
 `im:message:send_as_bot` 是当前发送、回复、编辑消息与更新消息卡片 API 的可选授权之一，因此**不必再重复申请 `im:message:update`**。已有更宽的 `im:message` 可覆盖部分发送、编辑、表情接口，但并不替代接收事件所需权限；不建议仅为启动本项目扩大为该权限，也不要未经核对就撤销旧应用已有权限。
 
-## 2. 增强权限：推荐开通，缺少可降级
+## 2. 增强权限：按需开通，缺少对应功能不可用或降级
 
 | Scope | 功能 | 缺少时的行为 |
 |---|---|---|
 | `im:message.reactions:write_only` | 收到消息添加处理中表情、结束后撤回自己的表情 | 表情失败不阻断回复；无需额外申请读取表情权限或订阅表情事件 |
 | `im:chat:read` | 获取群名称，辅助 owner 识别审批申请来源 | 审批卡片继续使用群 ID；无需群成员列表或群管理权限 |
 | `cardkit:card:write` | 创建/更新 CardKit 实体、组件、流式配置，提供原生打字机效果 | 自动退回原来的整卡更新；普通文本模式不使用该能力 |
+| `im:message:readonly` | 获取用户消息内的图片、文件、音视频资源 | 附件下载失败并明确提示；文字仍可使用 |
+| `im:resource:upload` | 上传待发送的图片和普通文件 | 无法上传待发送附件；发送消息本身仍需 `im:message:send_as_bot` |
+
+**注意下载与上传不是同一组权限：**消息资源下载 API 接受 `im:message:readonly`、`im:message.history:readonly` 或更宽的 `im:message` 任一项；已有可用替代权限无需重复申请。上传 API 接受 `im:resource:upload` 或已有的 `im:resource`。不要仅开通 `im:resource` 就认为能够下载用户发来的图片。网关只下载通过准入的当前消息资源，不主动查询聊天历史。图片识别还需模型支持视觉，权限本身不能赋予模型视觉能力。
 
 群信息 API 也接受历史权限 `im:chat:readonly` 或更宽的 `im:chat`，无需同时申请；新用户优先选择 `im:chat:read`。基础审批卡片、停止/打断按钮并不要求 CardKit 权限，它们依赖消息发送/更新权限及下文的卡片回调配置。
 
@@ -49,7 +53,7 @@
 
 - 获取机器人自身信息 `GET /open-apis/bot/v3/info` 不需要额外 API scope，但仍需应用凭据与机器人能力。
 - 网关使用 `open_id`，无需为接收敏感的 `user_id` 字段额外申请 `contact:user.employee_id:readonly`，也不需要全通讯录读取权限。
-- 无需消息历史检索、成员管理、撤回消息、资源下载或图片上传权限。当前仅处理文字/富文本，不因接收到附件就自动下载。
+- 不主动检索消息历史，无需成员管理、撤回消息权限。附件在准入、去重及排队之后下载；资源下载/上传的权限见上表。合并转发、卡片内资源和表情包不自动下载。
 - 无需文档、云盘、日历、邮件、任务、多维表格等业务权限。这些不是 gateway 的启动依赖；若另行启用相关 Pi 工具/扩展，再按具体用途和身份单独授权。
 - `/restart` 在网关内执行，仅需已有消息接收/回复权限和 owner/管理员授权，没有单独的飞书重启 scope。
 
@@ -63,7 +67,7 @@ npm run setup -- --permissions
 npm run --silent setup -- --permissions-json
 ```
 
-这两个命令不联网、不读取或覆盖配置，也不申请权限；现有用户可直接运行，无需重新扫码或录入密钥。推荐 JSON 包含基础 3 项和增强 3 项，使用 `scopes.tenant`，`scopes.user` 为空；不包含非 @ 群消息敏感权限。可将 JSON 用于控制台权限批量导入，仍须人工核对、发布并完成租户审批。
+这两个命令不联网、不读取或覆盖配置，也不申请权限；现有用户可直接运行，无需重新扫码或录入密钥。推荐 JSON 包含基础 3 项和增强 5 项，使用 `scopes.tenant`，`scopes.user` 为空；不包含非 @ 群消息敏感权限。可将 JSON 用于控制台权限批量导入，仍须人工核对、发布并完成租户审批。
 
 扫码和手动配置在保存凭据后都会显示同一份权限清单、当前应用权限链接、事件/回调订阅和发布检查步骤。程序不会自动修改已有应用权限、机器人访问策略或工具开关。
 
@@ -71,6 +75,7 @@ npm run --silent setup -- --permissions-json
 
 - [接收消息事件及权限范围](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive)：`src/gateway/index.js` 注册事件，`src/gateway/route.js` 做准入。
 - [发送消息](https://open.feishu.cn/document/server-docs/im-v1/message/create)、[回复消息](https://open.feishu.cn/document/server-docs/im-v1/message/reply)、[编辑消息](https://open.feishu.cn/document/server-docs/im-v1/message/update)、[更新消息卡片](https://open.feishu.cn/document/server-docs/im-v1/message-card/patch)：`src/lark/messages.js`、`src/lark/cards.js`。
+- [获取消息资源](https://open.feishu.cn/document/server-docs/im-v1/message/get-2)、[上传图片](https://open.feishu.cn/document/server-docs/im-v1/image/create)、[上传文件](https://open.feishu.cn/document/server-docs/im-v1/file/create)：`src/lark/resources.js`，边界与策略见 [多媒体收发](MEDIA.md)。
 - [添加表情](https://open.feishu.cn/document/server-docs/im-v1/message-reaction/create)、[删除表情](https://open.feishu.cn/document/server-docs/im-v1/message-reaction/delete)：`src/lark/reactions.js`。
 - [获取群信息](https://open.feishu.cn/document/server-docs/group/chat/get-2)、[获取机器人信息](https://open.feishu.cn/document/client-docs/bot-v3/obtain-bot-info)：`src/lark/metadata.js`。
 - [流式更新文本](https://open.feishu.cn/document/cardkit-v1/card-element/content)：`src/lark/card-stream.js`（同一 `cardkit:card:write` 覆盖相关创建/更新接口）。
