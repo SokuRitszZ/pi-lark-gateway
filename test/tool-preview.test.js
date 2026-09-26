@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTimeline } from '../src/progress/timeline.js';
-import { toolPreview } from '../src/progress/tool-preview.js';
+import { toolPreview, operationBlock } from '../src/progress/tool-preview.js';
 
 const start = (timeline, id, toolName, args = {}) => timeline.event({ type: 'tool_execution_start', toolCallId: id, toolName, args });
 const end = (timeline, id, isError = false) => timeline.event({ type: 'tool_execution_end', toolCallId: id, isError });
@@ -11,26 +11,26 @@ test('adjacent same-kind calls collapse with multiplication count and only newes
   const timeline = createTimeline();
   start(timeline, 'a', 'bash', { command: 'npm test' }); end(timeline, 'a');
   start(timeline, 'b', 'bash', { command: 'npm run check' });
-  assert.equal(timeline.render(), '⏳ bash ×2：npm run check');
+  assert.equal(timeline.render(), '⏳ bash ×2：\n\n```text\nnpm run check\n```');
   end(timeline, 'b');
-  assert.equal(timeline.render(), '✅ bash ×2：npm run check');
-  assert.equal(timeline.finish('完成'), '✅ bash ×2：npm run check\n\n完成');
+  assert.equal(timeline.render(), '✅ bash ×2');
+  assert.equal(timeline.finish('完成'), '✅ bash ×2\n\n完成');
 });
 test('only the latest invocation globally has a preview, even when older calls finish later', () => {
   const timeline = createTimeline();
   start(timeline, 'a', 'read', { path: 'old.js' });
   start(timeline, 'b', 'bash', { command: 'npm run verify' });
   end(timeline, 'b'); end(timeline, 'a');
-  assert.equal(timeline.render(), '✅ read\n✅ bash：npm run verify');
+  assert.equal(timeline.render(), '✅ read\n✅ bash');
   start(timeline, 'c', 'read', { path: 'new.js' });
-  assert.equal(timeline.render(), '✅ read\n✅ bash\n⏳ read：new.js');
+  assert.equal(timeline.render(), '✅ read\n✅ bash\n⏳ read：\n\n```text\nnew.js\n```');
 });
 test('visible assistant text separates groups, but empty assistant tool messages do not', () => {
   const timeline = createTimeline();
   start(timeline, 'a', 'read', { path: 'a.js' }); end(timeline, 'a');
   text(timeline, ''); start(timeline, 'b', 'read', { path: 'b.js' }); end(timeline, 'b');
   text(timeline, '中间说明'); start(timeline, 'c', 'read', { path: 'c.js' }); end(timeline, 'c');
-  assert.equal(timeline.render(), '✅ read ×2\n\n中间说明\n\n✅ read：c.js');
+  assert.equal(timeline.render(), '✅ read ×2\n\n中间说明\n\n✅ read');
 });
 test('group status preserves pending, failures and unfinished calls without changing latest preview', () => {
   const timeline = createTimeline();
@@ -38,15 +38,16 @@ test('group status preserves pending, failures and unfinished calls without chan
   start(timeline, 'b', 'bash', { command: 'last' });
   start(timeline, 'b', 'bash', { command: 'duplicate' });
   end(timeline, 'a', true);
-  assert.equal(timeline.render(), '⏳ bash ×2：last');
-  end(timeline, 'b'); assert.equal(timeline.render(), '❌ bash ×2：last');
+  assert.equal(timeline.render(), '⏳ bash ×2：\n\n```text\nlast\n```');
+  end(timeline, 'b'); assert.equal(timeline.render(), '❌ bash ×2');
   const stopped = createTimeline(); start(stopped, 'a', 'read', { path: 'file.js' });
-  assert.equal(stopped.finish('已停止', { terminal: true }), '⏹ read：file.js\n\n已停止');
+  assert.equal(stopped.finish('已停止', { terminal: true }), '⏹ read\n\n已停止');
 });
-test('operation preview is at most 100 Unicode characters and one line', () => {
-  assert.equal(toolPreview('bash', { command: 'x'.repeat(150) }), 'x'.repeat(100));
-  assert.equal(toolPreview('functions.bash', { command: '😀'.repeat(110) }), '😀'.repeat(100));
-  assert.equal(toolPreview('bash', { command: 'npm test\n npm run check\t' }), 'npm test npm run check');
+test('operation preview is complete and preserves newlines, indentation and tabs', () => {
+  assert.equal(toolPreview('bash', { command: 'x'.repeat(15000) }), 'x'.repeat(15000));
+  assert.equal(toolPreview('functions.bash', { command: '😀'.repeat(110) }), '😀'.repeat(110));
+  assert.equal(toolPreview('bash', { command: 'npm test\n npm run check\t' }), 'npm test\n npm run check\t');
+  assert.equal(toolPreview('bash', { command: 'echo\r\nhi\x1b' }), 'echo\nhi\\x1b');
 });
 test('only whitelisted operation fields are used, never file contents or arbitrary args', () => {
   assert.equal(toolPreview('write', { path: 'src/app.js', content: 'PRIVATE_CONTENT' }), 'src/app.js');
@@ -56,17 +57,24 @@ test('only whitelisted operation fields are used, never file contents or arbitra
   assert.equal(toolPreview('memory_add', { content: 'PRIVATE_MEMORY' }), '');
   assert.equal(toolPreview('unknown', { command: 'PRIVATE' }), '');
 });
-test('credential-bearing operations are suppressed before truncation', () => {
+test('credential-bearing operations are suppressed regardless of length', () => {
   for (const command of ['TOKEN=do-not-show npm publish', 'curl -H "Authorization: Bearer abc" https://example.test',
     'curl https://name:password@example.test', 'echo sk-abcdefghijklmnopqrstuvwxyz',
     'x'.repeat(120) + ' --api-key=do-not-show', 'echo -----BEGIN PRIVATE KEY-----']) {
     assert.equal(toolPreview('bash', { command }), '敏感操作已隐藏');
   }
 });
-test('preview markup cannot inject mentions, headings or links', () => {
+test('preview markup stays literal inside a collision-safe fenced code block', () => {
+  const command = 'echo <at id=all>everyone</at> [click](https://example.test)\n```\n~~~';
+  const block = operationBlock(command);
+  assert.equal(block, '````text\n' + command + '\n````');
+  const timeline = createTimeline(); start(timeline, 'a', 'bash', { command });
+  assert.equal(timeline.render(), '⏳ bash：\n\n' + block);
+});
+test('a finished latest tool never falls back to showing an older running operation', () => {
   const timeline = createTimeline();
-  start(timeline, 'a', 'bash', { command: 'echo <at id=all>everyone</at> [click](https://example.test)' });
-  const rendered = timeline.render();
-  assert.doesNotMatch(rendered, /：.*(?<!\\)<at|(?<!\\)\[click\]/);
-  assert.ok(rendered.startsWith('⏳ bash：echo '));
+  start(timeline, 'a', 'bash', { command: 'old running command' });
+  start(timeline, 'b', 'bash', { command: 'new command' }); end(timeline, 'b');
+  assert.equal(timeline.render(), '⏳ bash ×2');
+  assert.equal(timeline.finish('done'), '⏹ bash ×2\n\ndone');
 });

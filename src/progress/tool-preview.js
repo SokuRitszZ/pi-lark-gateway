@@ -11,11 +11,19 @@ export function toolPreview(name, args) {
   if (!args || typeof args !== 'object') return '';
   const keys = fields[String(name).split('.').at(-1)] || [];
   const text = keys.map(key => typeof args[key] === 'string' ? args[key] : '').filter(Boolean).join(' ');
-  // Suppress the entire operation when it looks credential-bearing. Do this
-  // BEFORE truncation so a sensitive flag after character 100 still protects it.
-  const normalized = text.replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/gu, ' ').trim();
-  if (sensitive.test(normalized)) return '敏感操作已隐藏';
-  return Array.from(normalized).slice(0, 100).join('');
+  // Keep the full operation and its formatting, but suppress credential-bearing
+  // operations and render control bytes visibly instead of executing them.
+  if (sensitive.test(text)) return '敏感操作已隐藏';
+  return text.replace(/\r\n?/g, '\n').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,
+    char => `\\x${char.charCodeAt(0).toString(16).padStart(2, '0')}`);
 }
 
-export const escapePreview = text => text.replace(/[\\`*_{}\[\]()<>!#|]/g, '\\$&');
+export function operationBlock(text) {
+  let ticks = 2, tildes = 2;
+  for (const match of text.matchAll(/`+|~+/g)) {
+    if (match[0][0] === '`') ticks = Math.max(ticks, match[0].length);
+    else tildes = Math.max(tildes, match[0].length);
+  }
+  const fence = ticks <= tildes ? '`'.repeat(ticks + 1) : '~'.repeat(tildes + 1);
+  return `${fence}text\n${text}\n${fence}`;
+}

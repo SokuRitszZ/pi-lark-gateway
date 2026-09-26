@@ -1,4 +1,4 @@
-import { toolPreview, escapePreview } from './tool-preview.js';
+import { toolPreview, operationBlock } from './tool-preview.js';
 
 const textParts = message => message.content.map(block => block.type === 'text' && typeof block.text === 'string' ? block.text : undefined);
 const parts = entry => entry.parts.filter(part => typeof part === 'string');
@@ -37,7 +37,7 @@ export function createTimeline() {
         const calls = block.calls, last = calls.at(-1);
         const status = ['⏳', '❌', '⏹', '✅'].find(value => calls.some(call => call.status === value));
         text = `${status} ${last.name}${calls.length > 1 ? ` ×${calls.length}` : ''}`;
-        if (last === latestTool && last.preview) text += `：${escapePreview(last.preview)}`;
+        if (last === latestTool && last.status === '⏳' && last.preview) text += `：\n\n${operationBlock(last.preview)}`;
       }
       result += (result ? previous === 'tool' && block.type === 'tool' ? '\n' : '\n\n' : '') + text;
       previous = block.type;
@@ -82,6 +82,7 @@ export function createTimeline() {
         const entry = tools.get(event.toolCallId);
         if (!entry) return false;
         entry.status = event.isError ? '❌' : '✅';
+        delete entry.preview;
         return true;
       }
       return ['agent_start', 'intent_title'].includes(event.type);
@@ -101,7 +102,10 @@ export function createTimeline() {
           else if (remainder) entries.push({ type: 'text', parts: [remainder] });
         } else if (text) entries.push({ type: 'text', parts: [text] });
       }
-      for (const entry of entries) if (entry.type === 'tool' && entry.status === '⏳') entry.status = '⏹';
+      for (const entry of entries) if (entry.type === 'tool') {
+        if (entry.status === '⏳') entry.status = '⏹';
+        delete entry.preview;
+      }
       return render();
     },
   };

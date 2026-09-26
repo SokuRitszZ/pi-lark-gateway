@@ -86,7 +86,29 @@ test('shorter canonical text clears obsolete continuation content instead of lea
     if (id !== 'card-0') assert.equal(body(card), '内容已合并至前面的卡片。');
   }
 });
-for (const stopped of [false, true]) test(`terminal card retains partial history, stopped=${stopped}`, async () => {
+test('full latest operation spans balanced code blocks and disappears from every card when done', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { response, cards } = await fixture();
+  const command = `printf '%s' '${'长😀\\\\"'.repeat(10000)}'`;
+  response.event({ type: 'tool_execution_start', toolCallId: 'long', toolName: 'bash', args: { command } });
+  await flush(t);
+  assert.ok(cards.size > 1);
+  const chunks = [];
+  for (const card of cards.values()) {
+    assert.ok(Buffer.byteLength(JSON.stringify({ msg_type: 'interactive', content: JSON.stringify(card) })) <= 28 * 1024);
+    const match = body(card).match(/```text\n([\s\S]*)\n```\n?$/);
+    assert.ok(match, 'each continuation must have an opening and closing code fence');
+    chunks.push(match[1]);
+  }
+  assert.equal(chunks.join(''), command);
+  response.event({ type: 'tool_execution_end', toolCallId: 'long' });
+  await flush(t);
+  assert.equal(body(cards.get('card-0')), '✅ bash');
+  for (const card of cards.values()) assert.doesNotMatch(body(card), /printf|长😀|```/);
+  await response.finish('完成');
+  assert.equal(body(cards.get('card-0')), '✅ bash\n\n完成');
+});
+for (const stopped of [false, true]) test(`terminal card retains partial history, stopped=${stopped}`,  async () => {
   const control = { id: 'run', stopped, attach() {}, close() {} };
   const { response, cards } = await fixture({ create: () => control });
   response.event({ type: 'agent_start' });

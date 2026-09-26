@@ -14,7 +14,7 @@
 ### Changed
 - Handle an exact Feishu `/restart` command natively for owner/admins, respecting access policy and waiting for confirmation plus all accepted output/cleanup before the deferred restart.
 - Add `restart` CLI scheduling: wait for all accepted replies, card updates and cleanup before a delayed managed restart; coalesce requests and never force-kill the active response.
-- Collapse adjacent same-kind card tool calls as `tool ×N`, without parentheses; only the newest call shows a sanitized operation preview capped at 100 Unicode characters.
+- Collapse adjacent same-kind card tool calls as `tool ×N`, without parentheses; show the full sanitized operation in a fenced Markdown block only while the newest call is running. Clear details on completion/failure/stop, and preserve balanced code fences across byte-budgeted continuation cards.
 - Card replies retain streamed assistant commentary, chronological tool statuses and final text without duplicating the SDK's aggregate answer. Live overflow reuses continuation cards; stopped/error cards preserve partial progress. Normal text reply mode is unchanged.
 - Release workflow directly calls the SHA-pinned SokuRitszZ/npm-release-action for planning, packaging and publication; gateway-specific matrix tests and exact-tarball CLI smoke remain in this repository. Shared artifacts use bundle.json, SHA256SUMS and a source/ archive root.
 - New installations require owner approval for unknown users; groups require a mention; tools default to disabled.
