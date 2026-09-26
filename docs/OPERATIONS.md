@@ -73,6 +73,7 @@ npm run restart -- --delay-ms 1000
 - `startup_failed_check_configuration_and_network`：先 doctor，检查配置路径/文件权限、Node 路径，再核对网络和模型配置。
 - `model_failed`/`message_failed`：在同一个 OS 用户下通过 Pi 确认登录、模型与额度；勿把原始 SDK 错误或凭据贴进群聊。
 - `lark_error`/持续断连：核对代理、App Secret、应用发布和长连接权限。按钮无效另查 `card.action.trigger` 回调订阅。
+- `card_stream_fallback`：本轮原生打字机已降级为整卡更新。检查 `cardkit:card:write` 权限、平台限流及网络；原有回复内容和续卡继续发送。`card_stream_close_failed` 表示关闭流式窗口失败；降级更新仍显式关闭 `streaming_mode`。日志不会包含原始 SDK 错误或消息内容。
 - `session_archive_failed_retained`：原始记录保留，聊天继续。检查磁盘空间/权限/模型可用性；超过 32 MiB 的历史不自动删。恢复聊天后旧清理计划作废，重新达到空闲期才再次归档。
 - 无回复也可能是未 @、白名单未审批、denyTextPatterns、会话被禁用/拉黑，不能一律判为进程故障。
 

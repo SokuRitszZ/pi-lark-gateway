@@ -1,3 +1,5 @@
+import { createStreamingCards } from './card-stream.js';
+
 export function createReplies(client, threads, log) {
   async function sendReply(message, text) {
     const result = await client.im.v1.message.reply({ path: { message_id: message.id }, data: {
@@ -21,12 +23,14 @@ export function createReplies(client, threads, log) {
     } });
     if (result.code !== 0) { log(`edit_failed_code_${Number(result.code)}`); throw new Error('edit_failed'); }
   }
-  async function sendCardReply(message, card) {
+  async function sendCardReply(message, card, { uuid } = {}) {
     const result = await client.im.v1.message.reply({ path: { message_id: message.id }, data: {
-      msg_type: 'interactive', content: JSON.stringify(card),
+      msg_type: 'interactive', content: JSON.stringify(card), ...(uuid ? { uuid } : {}),
       ...(message.isGroup ? { reply_in_thread: true } : {}),
     } });
-    if (result.code !== 0 || !result.data?.message_id) throw new Error('card_send_failed');
+    if (result.code !== 0 || !result.data?.message_id) throw Object.assign(new Error('card_send_failed'), {
+      cardSendRejected: Number.isInteger(result.code) && result.code !== 0,
+    });
     if (message.isGroup && result.data.thread_id) {
       threads.roots.set(`${message.chatId}:${result.data.thread_id}`, message.root);
       await threads.save().catch(() => log('thread_mapping_save_failed'));
@@ -37,5 +41,9 @@ export function createReplies(client, threads, log) {
     const result = await client.im.v1.message.patch({ path: { message_id: id }, data: { content: JSON.stringify(card) } });
     if (result.code !== 0) throw new Error('card_edit_failed');
   }
-  return { sendReply, reply, edit, sendCardReply, editCard };
+  return { sendReply, reply, edit, sendCardReply, editCard,
+    createCardStream: message => createStreamingCards({ client, log,
+      send: (card, options) => sendCardReply(message, card, options), edit: editCard,
+    }),
+  };
 }
