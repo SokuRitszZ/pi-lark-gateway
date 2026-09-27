@@ -6,12 +6,13 @@
 - Single-process limit of ten concurrent conversation tasks; FIFO waiting and per-conversation serialization.
 - Idle session archiving after 30 days: isolated summaries, private persistence, cleanup recovery, and summary-based continuation.
 - Manual Feishu setup with hidden secret input, local doctor, private stopped-service backups, and clean-home installation smoke test.
-- CI matrix, checked source archive packaging with lockfile, file hashes and source commit; installation, operations, release and security documentation.
-- npm runtime distribution with executable pi-lark-gateway CLI, generated shrinkwrap, tarball installation smoke, explicit local publication confirmation and automatic beta/next/latest selection.
+- CI matrix, checked source archive packaging with lockfile and source commit metadata; installation, operations, release and security documentation.
+- npm runtime distribution with executable pi-lark-gateway CLI, generated shrinkwrap, tarball installation smoke and gated beta/latest publication.
 - Branch-driven GitHub Actions releases: each release/x.y.z push generates x.y.z-beta.<run> on beta; a same-repository release PR merged into main publishes x.y.z on latest. Version manifests are stamped in staging without source commits.
 - Reusable test matrix, exact-artifact smoke/verification, opt-in npm OIDC publication and draft-to-public GitHub Releases with immutable assets and integrity-checked retries.
 
 ### Changed
+- Remove duplicate local release planners, packers and publishers after adopting the pinned shared Action; retain workflow contract tests, fail-closed source publication and isolated installation smoke fixtures, with package-content checks also applied to the Action's exact tarball.
 - Constrain inline image previews with a 278px JSON 2.0 column instead of legacy compact-width image attributes; keep default card width and existing error fallback behavior.
 - Use default-width reply cards with compact inline image previews, preserving full-image viewing on click.
 - Embed outgoing images in the current response card instead of standalone image messages; serialize image/text updates, retain images through finalization and native fallback, and fail explicitly without an active card.

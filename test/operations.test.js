@@ -5,10 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { collectCredentials } from '../src/onboarding/manual.js';
 import { makeConfig, validateConfig, saveConfig } from '../src/config/index.js';
-import { copyReleaseSource, buildRelease } from '../scripts/release.js';
 import { createBackup } from '../scripts/backup.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,28 +32,6 @@ test('setup CLI advertises approval and rejects international mode before networ
   assert.equal(help.status, 0); assert.match(help.stdout, /默认白名单审批/); assert.doesNotMatch(help.stdout, /feishu\|lark|默认允许所有用户/);
   const reject = spawnSync(process.execPath, ['src/onboarding/index.js', 'setup', '--domain', 'lark'], { cwd: root, encoding: 'utf8' });
   assert.equal(reject.status, 1); assert.match(reject.stderr, /仅支持国内飞书/);
-});
-
-test('release package includes lockfile and file hashes, excludes local credentials, requires traceable source by default', async t => {
-  const dir = await tempDir(t), source = path.join(dir, 'source'), outputDir = path.join(dir, 'dist');
-  await copyReleaseSource(root, source);
-  await fs.writeFile(path.join(source, 'credentials-private.json'), 'do not package');
-  await fs.writeFile(path.join(source, '.env'), 'do not package');
-  await assert.rejects(buildRelease({ root: source, outputDir }), /requires_git_commit/);
-  const file = await buildRelease({ root: source, outputDir, allowUnversioned: true });
-  const unpacked = path.join(dir, 'unpacked'); await fs.mkdir(unpacked);
-  const tar = spawnSync('tar', ['-xzf', file, '-C', unpacked], { encoding: 'utf8' }); assert.equal(tar.status, 0);
-  const packaged = path.join(unpacked, (await fs.readdir(unpacked))[0]);
-  const manifest = JSON.parse(await fs.readFile(path.join(packaged, 'release-manifest.json')));
-  assert.equal(manifest.sourceCommit, null);
-  assert.ok(manifest.files['package-lock.json']); assert.ok(manifest.files['docs/OPERATIONS.md']);
-  assert.equal(manifest.files['credentials-private.json'], undefined); assert.equal(manifest.files['.env'], undefined);
-  for (const [name, hash] of Object.entries(manifest.files)) assert.equal(createHash('sha256').update(await fs.readFile(path.join(packaged, name))).digest('hex'), hash);
-  const checksum = createHash('sha256').update(await fs.readFile(file)).digest('hex');
-  assert.ok((await fs.readFile(`${file}.sha256`, 'utf8')).startsWith(checksum));
-  await assert.rejects(buildRelease({ root: source, outputDir, allowUnversioned: true }), { code: 'EEXIST' });
-  await fs.writeFile(path.join(source, 'src', 'credentials-oops.json'), 'unsafe');
-  await assert.rejects(copyReleaseSource(source, path.join(dir, 'blocked')), /unsafe_source/);
 });
 
 test('stopped-service backup is private, restorable in staging, never overwrites and excludes model auth', async t => {

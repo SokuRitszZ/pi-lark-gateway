@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
-import { packNpm } from './npm-release.js';
+import { packSmokeFixture, checkPackageContents } from './smoke-fixture.js';
 
 const { values } = parseArgs({ options: { artifact: { type: 'string' }, 'expected-version': { type: 'string' } } });
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -18,7 +18,9 @@ try {
   for (const key of ['HTTPS_PROXY', 'HTTP_PROXY', 'NO_PROXY', 'https_proxy', 'http_proxy', 'no_proxy']) if (process.env[key]) env[key] = process.env[key];
   const artifact = values.artifact
     ? { file: path.resolve(values.artifact), version: values['expected-version'] || JSON.parse(await fs.readFile(path.join(root, 'package.json'))).version }
-    : await packNpm({ root, outputDir: path.join(temp, 'packed'), allowUnversioned: true, env });
+    : await packSmokeFixture({ root, directory: path.join(temp, 'fixture'), env });
+  // Check consumer-specific contents even when testing the Action's exact tgz.
+  checkPackageContents(artifact.file);
   const install = spawnSync('npm', ['install', '--global', '--prefix', prefix, artifact.file, '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: home, env, stdio: 'inherit', timeout: 600000 });
   if (install.error || install.status !== 0) throw new Error('npm_install_failed');
   const cli = path.join(prefix, 'bin/pi-lark-gateway');

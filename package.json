@@ -19,10 +19,8 @@
     "check": "node scripts/check.js",
     "verify": "npm test && npm run check && npm run setup -- --help",
     "release:check": "npm run verify && npm audit --omit=dev --audit-level=high",
-    "release:pack": "npm run release:check && node scripts/release.js",
     "smoke:clean": "node scripts/smoke-clean.js",
     "smoke:npm": "node scripts/smoke-npm.js",
-    "release:npm": "npm run release:check && node scripts/npm-release.js",
     "prepublishOnly": "node scripts/npm-publish-guard.js",
     "doctor": "node scripts/doctor.js",
     "backup": "node scripts/backup.js"

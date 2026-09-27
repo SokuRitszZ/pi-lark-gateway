@@ -37,7 +37,7 @@ npm ci --ignore-scripts
 npm run verify
 ```
 
-本地旧 `release:pack` 命令仍生成 `pi-lark-gateway-<版本>.tar.gz` 和独立 `.sha256`，顶层目录为包名加版本；不要与上述共享 Action 格式混用。
+正式产物统一由共享 Action 构建；本地安装 smoke 产生的临时测试包不是发布包。
 
 版本目录可以放在 `~/.local/opt/pi-lark-gateway/`。保留 `package-lock.json`，部署不要改用 `npm update` 或拷贝别的 OS 的 `node_modules`。依赖无需安装生命周期脚本，使用 `--ignore-scripts`。仅解压你信任的包。
 

@@ -27,9 +27,9 @@
 
 各阶段参数一致：包目录 `.`、分支前缀 `release/`、主分支 `main`、预发布标识/channel `beta`、正式 channel `latest`、Git 标签前缀 `v`、registry `https://registry.npmjs.org/`、access `public`、shrinkwrap/source-archive 均为 `true`。只有通过发布开关的上传阶段使用 `dry-run: false`。
 
-构建后使用 Action 的 `npm-file` 输出进行网关安装 smoke，整个 `artifact-directory` 上传；发布阶段下载到 `$RUNNER_TEMP/npm-release`，不重建。附件为 npm `.tgz`、`*-source.tar.gz`、`SHA256SUMS` 和 `bundle.json`，源码包顶层目录为 `source/`；版本、源 commit 和 sourceVersion 在 bundle 元数据中，不再依赖旧的包内 release-manifest/npm-release.json。源码归档包含全部 tracked 文件，新增敏感文件前必须审查；不要提交本地配置。通用 Action 保留 package scripts，但 pack/publish 均禁用 hooks；npm 安装用户应使用 CLI，不运行源码发布命令。
+构建后使用 Action 的 `npm-file` 输出进行网关安装 smoke，整个 `artifact-directory` 上传；发布阶段下载到 `$RUNNER_TEMP/npm-release`，不重建。附件为 npm `.tgz`、`*-source.tar.gz`、`SHA256SUMS` 和 `bundle.json`，源码包顶层目录为 `source/`；版本、源 commit 和 sourceVersion 在 bundle 元数据中。源码归档包含全部 tracked 文件，新增敏感文件前必须审查；不要提交本地配置。通用 Action 保留 package scripts，但 pack/publish 均禁用 hooks；npm 安装用户应使用 CLI，不运行源码发布命令。
 
-`.github/workflows/ci.yml` 仍负责普通分支 push/PR/手动验证，只有只读权限，不发布。旧本地打包脚本作为手工验证/备用工具保留，不再被 release workflow 调用。
+`.github/workflows/ci.yml` 仍负责普通分支 push/PR/手动验证，只有只读权限，不发布。版本规划、正式打包和发布实现只在共享 Action 中维护，本仓库不保留第二套发布脚本。`smoke-fixture.js` 仅准备临时安装测试副本，不负责版本、标签、校验和或上传；发布流水线的 smoke 始终直接安装 Action 产出的同一份 tgz。
 
 不同 push 使用不同并发组，不会因“只保留一个 pending run”而丢掉中间更新。GitHub runner 资源不足时排队；失败的更新不会发布。并发构建可能完成顺序不同，`beta` channel 指向最后成功上传的版本，不保证是最后一次 push；验收应安装明确的完整 beta 版本号。不同正式版本请按顺序合并、验收，避免同时竞争 latest。
 
@@ -84,7 +84,7 @@ git push -u origin release/1.2.3
 # 自动发布 1.2.3 到 latest，创建对应 GitHub Release
 ```
 
-安装候选包：`npm install -g pi-lark-gateway@beta --ignore-scripts`，更推荐使用流水线给出的完整 beta 版本号。正式版用 `@latest` 或固定版本。旧 `@next` 仅用于手动 rc 发布，不会自动指向分支 beta。
+安装候选包：`npm install -g pi-lark-gateway@beta --ignore-scripts`，更推荐使用流水线给出的完整 beta 版本号。正式版用 `@latest` 或固定版本。不使用 `@next` 作为分支发布 channel。
 
 ## 重试与失败
 
@@ -98,17 +98,19 @@ git push -u origin release/1.2.3
 
 真实模型/飞书 E2E 不在无凭据 CI 中，目标部署仍做 owner 最小回复验收；部署、备份和回滚见 [OPERATIONS.md](OPERATIONS.md)。
 
-## 本地维护 / bootstrap 备用
+## 本地验证 / 首次 bootstrap
 
 ```bash
 npm ci --ignore-scripts
 npm run release:check
 npm run smoke:clean
 npm run smoke:npm
-# 无提交/脏工作区只做本地演练，不上传
-npm run release:npm -- --allow-unversioned --dry-run --output /新的临时目录
+# 验证共享 Action 已构建的真实产物，不重新打包
+npm run smoke:npm -- --artifact /路径/package.tgz --expected-version 1.2.3-beta.42
 ```
 
-本地手动脚本仍按源码 package 版本构建，与 CI 分支自动版本是两条入口。首次 bootstrap 如需传统认证：在自己的终端 npm login，确认许可和包名权利，准备干净提交、同步 package/lockfile 和对应 v<版本> 标签，再执行 `npm run release:npm -- --publish --confirm-publication --output /新目录`。不要把这个备用流程当成日常分支发布步骤。
+无 `--artifact` 时，`smoke:npm` 仅在临时目录用原生 `npm pack --ignore-scripts` 准备测试包，包含 lockfile 生成的 shrinkwrap、保留 scripts；测试结束自动清理，不生成正式发布元数据、不上传。`smoke:clean` 保留干净 HOME 安装与启动验证。两者不修改源码 manifest，也不读取宿主认证配置。
+
+已移除本地 `release:pack` / `release:npm` 入口；直接在源码执行 `npm publish` 仍被保护钩子拒绝。首次 bootstrap 若需传统认证，由维护者在自己的终端完成 npm 登录并审核许可、包名权利和版本，使用共享 Action 构建、校验且通过 exact-artifact smoke 的 tgz，按 npm 官方流程显式上传；不要使用本地 smoke 测试包或把 token/OTP 放入聊天。之后配置 Trusted Publisher，日常发布只走上述分支工作流。
 
 源码 tar.gz 包含同步后的 package/lockfile 与 sourceCommit/sourceVersion 元数据；npm tgz 带同版本 package/shrinkwrap、CLI 和运维资料，不含发布工具、配置、凭据或 node_modules。发布前仍应人工检查源码中的秘密。
