@@ -2,12 +2,14 @@ import path from 'node:path';
 import os from 'node:os';
 import { createAgentSession, DefaultResourceLoader, SessionManager } from '@earendil-works/pi-coding-agent';
 import { enableImageCompatibility } from './image-compat.js';
+import { senderIdentityExtension } from '../identity/index.js';
 
 export async function openConversation(modelRuntime, model, dir, tools, summary = '', {
-  create = createAgentSession, agentDir = path.join(os.homedir(), '.pi/agent'), customTools = [],
+  create = createAgentSession, agentDir = path.join(os.homedir(), '.pi/agent'), customTools = [], getSenderHeader,
 } = {}) {
   const full = tools === 'all';
   const loader = new DefaultResourceLoader({ cwd: dir, agentDir,
+    extensionFactories: getSenderHeader ? [senderIdentityExtension(getSenderHeader)] : [],
     noExtensions: !full, noSkills: !full, noContextFiles: !full, noPromptTemplates: true, noThemes: true,
     ...(full ? { appendSystemPromptOverride: current => [...current,
       '你通过飞书/Lark 与用户对话。根据实际工具结果报告操作，不要泄露凭据。工具运行在宿主机器上，不是沙箱。群聊输出对成员可见，避免披露私人记忆。破坏性操作和对外发送前确认。收到的图片由视觉输入提供，其余附件只保存并非已解析。若需发回文件，将文件写入 attachments/outbox，得到用户明确请求或确认后使用 gateway_send_file；图片应嵌入当前回复卡片，不能另发独立图片消息；如果当前不是卡片回复，先提示用户启用卡片模式。不能仅输出主机路径就声称已发送。'] }

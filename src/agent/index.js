@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { createIdentityResolver, identityHeader } from '../identity/index.js';
 import { createSessionPool } from './sessions.js';
 import { generateAnswer } from './answer.js';
 import { summarizeIntent } from './title.js';
@@ -6,23 +7,26 @@ import { createRunControl } from './run-control.js';
 
 export { sessionDirectory } from './session-lifecycle.js';
 
-export async function createAgent(base, model, { getAnswerTimeoutMs = () => 0, log = () => {}, pool: injectedPool, createPool = createSessionPool, prepareInput, getCustomTools = () => [] } = {}) {
+export async function createAgent(base, model, { getAnswerTimeoutMs = () => 0, log = () => {}, pool: injectedPool, createPool = createSessionPool, prepareInput, resolveIdentity = createIdentityResolver(), getCustomTools = () => [] } = {}) {
   const turns = new AsyncLocalStorage();
-  const pool = injectedPool || await createPool(base, model, { log, getCustomTools: dir => getCustomTools(dir, () => turns.getStore()) });
+  const pool = injectedPool || await createPool(base, model, { log, getCustomTools: dir => getCustomTools(dir, () => turns.getStore()),
+    getSenderHeader: () => turns.getStore()?.active ? turns.getStore().senderHeader : undefined });
   return {
     async answer(key, text, onEvent, { summarizeIntent: summarize = false, tools = 'none', onSession = () => {}, message, appendImage } = {}) {
       const turn = { active: true, message, tools, appendImage };
       return pool.run(key, tools, session => turns.run(turn, async () => {
-        const title = summarize
-          ? summarizeIntent(pool.modelRuntime, session.model, text, base)
-            .catch(() => '对话回复').then(title => onEvent({ type: 'intent_title', title }))
-          : Promise.resolve();
         const control = createRunControl(session), inputController = new AbortController();
         onSession({ ...control, abort() { inputController.abort(); return control.abort(); } });
         try {
+          turn.senderHeader = identityHeader(await resolveIdentity(message, { signal: inputController.signal }));
+          inputController.signal.throwIfAborted();
           // Download only after admission/dedup and inside the global session limiter.
           const input = message && prepareInput ? await prepareInput(message, { tools, signal: inputController.signal }) : { text, images: [] };
           inputController.signal.throwIfAborted();
+          const title = summarize
+            ? summarizeIntent(pool.modelRuntime, session.model, text, base)
+              .catch(() => '对话回复').then(title => onEvent({ type: 'intent_title', title }))
+            : Promise.resolve();
           const output = await generateAnswer(session, input.text, onEvent, getAnswerTimeoutMs(), input.images);
           await Promise.race([title, control.interrupted]);
           return output;
@@ -31,6 +35,7 @@ export async function createAgent(base, model, { getAnswerTimeoutMs = () => 0, l
           throw error;
         } finally {
           turn.active = false;
+          turn.senderHeader = undefined;
           inputController.abort();
           await turn.mediaQueue;
           onSession(null);

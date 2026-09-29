@@ -6,7 +6,8 @@ import { createMessageHandler, createThreadStore, createResponse } from '../mess
 import { createApprovals } from '../approvals/index.js';
 import { createAgent, sessionDirectory } from '../agent/index.js';
 import { createMedia, createMediaTool } from '../media/index.js';
-import { createConnection, createMetadata, createCards, createReplies, createReactions, createResources } from '../lark/index.js';
+import { createIdentityResolver } from '../identity/index.js';
+import { createUserProfiles, createConnection, createMetadata, createCards, createReplies, createReactions, createResources } from '../lark/index.js';
 import { createRouter } from './route.js';
 import { createControls, canControlResponse } from '../controls/index.js';
 import { createRestartControl, createRestartCommand } from '../restart/index.js';
@@ -39,6 +40,7 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
   });
   const agent = await createAgent(base, config.model, {
     log, prepareInput: media.prepare,
+    resolveIdentity: createIdentityResolver({ getUser: createUserProfiles(connection.client) }),
     getCustomTools: (dir, getTurn) => [createMediaTool(dir, getTurn, media.send)],
     getAnswerTimeoutMs: () => settings.get().config.answerTimeoutMs ?? 0,
   });

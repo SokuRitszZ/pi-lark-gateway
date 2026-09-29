@@ -21,6 +21,7 @@ export function normalizeEvent(event, threadRoots = new Map()) {
   if (isGroup && message.thread_id) threadRoots.set(alias, root);
   const debugSleepMs = Number.isSafeInteger(event.debug?.sleepMs) ? event.debug.sleepMs : undefined;
   return { id: message.message_id, chatId: message.chat_id, userId: sender.sender_id?.open_id, isGroup, root,
+    senderIds: Object.freeze({ userId: sender.sender_id?.user_id, unionId: sender.sender_id?.union_id, tenantKey: sender.tenant_key }),
     key: isGroup ? `${message.chat_id}:topic:${root}` : `${message.chat_id}:private`,
     text: text.trim(), type: message.message_type, ...(attachments.length ? { attachments } : {}), ...(debugSleepMs === undefined ? {} : { debugSleepMs }) };
 }
