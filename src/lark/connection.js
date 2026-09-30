@@ -1,4 +1,5 @@
 import * as Lark from '@larksuiteoapi/node-sdk';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { resourceHttpInstance } from './resource-context.js';
 
 export function createConnection({ config, secret }, log) {
@@ -6,7 +7,10 @@ export function createConnection({ config, secret }, log) {
   const options = { appId: config.bot.appId, appSecret: secret.appSecret,
     domain: Lark.Domain.Feishu, logger };
   const client = new Lark.Client({ ...options, httpInstance: resourceHttpInstance(Lark.defaultHttpInstance) });
-  const ws = new Lark.WSClient(options);
+  const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy;
+  const ws = new Lark.WSClient({ ...options,
+    ...(proxy ? { agent: new HttpsProxyAgent(proxy) } : {}), handshakeTimeoutMs: 15000,
+  });
   let timer;
   return {
     client,

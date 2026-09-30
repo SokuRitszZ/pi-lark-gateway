@@ -1,5 +1,6 @@
 import { normalizeEvent } from './normalize.js';
 import { mediaErrorText } from '../media/index.js';
+import { failureDiagnostic } from '../errors/index.js';
 
 export const REACTION_EMOJIS = ['SMILE', 'THUMBSUP', 'OK', 'HEART', 'CLAP'];
 const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -43,10 +44,11 @@ export function createMessageHandler({ answer, reply, beginResponse, command = (
         } catch (error) {
           const reason = error?.code;
           log(reason === 'ANSWER_TIMEOUT' ? 'message_timed_out' : reason === 'ANSWER_ABORTED' ? 'message_aborted' : 'message_failed');
+          const diagnostic = failureDiagnostic(error);
           const errorText = mediaErrorText(reason) || (reason === 'ANSWER_TIMEOUT' ? '本次回复已达到配置的超时时长，已停止。'
             : reason === 'ANSWER_ABORTED' ? '当前回复已停止。'
-            : reason === 'MODEL_FAILED' ? '模型生成失败，请稍后再试。'
-            : '暂时处理失败，请稍后再试。');
+            : `${reason === 'MODEL_FAILED' ? '模型生成失败' : '暂时处理失败'}（${diagnostic.code}）。\n${diagnostic.text}`);
+          if (!mediaErrorText(reason) && !['ANSWER_TIMEOUT', 'ANSWER_ABORTED'].includes(reason)) log(`message_failure_${diagnostic.code.toLowerCase()}`);
           if (progress) await progress.finish(errorText, { error: true }).catch(() => reply(m, errorText).catch(() => {}));
           else await reply(m, errorText).catch(() => {});
         } finally {
