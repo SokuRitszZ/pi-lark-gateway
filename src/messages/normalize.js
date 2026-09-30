@@ -1,4 +1,5 @@
 import { extractAttachments } from '../media/index.js';
+import { extractMentionText } from './mentions.js';
 
 // Transport-independent routing. No sender allowlist or mention requirement.
 export function normalizeEvent(event, threadRoots = new Map()) {
@@ -8,13 +9,7 @@ export function normalizeEvent(event, threadRoots = new Map()) {
   try { body = JSON.parse(message.content); } catch { return null; }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
   const attachments = extractAttachments(message.message_type, body);
-  let text = '';
-  if (message.message_type === 'text') text = typeof body.text === 'string' ? body.text : '';
-  if (message.message_type === 'post') {
-    const post = body.content ? body : body.zh_cn || body.en_us;
-    text = [typeof post?.title === 'string' ? post.title : '', ...(Array.isArray(post?.content) ? post.content : []).map(row => (Array.isArray(row) ? row : []).map(item => typeof item?.text === 'string' ? item.text : '').join(''))].filter(Boolean).join('\n');
-  }
-  for (const mention of message.mentions || []) text = text.replaceAll(mention.key, mention.name || '');
+  const { text, mentions } = extractMentionText(message, body);
   const isGroup = message.chat_type === 'group';
   const alias = `${message.chat_id}:${message.thread_id}`;
   const root = threadRoots.get(alias) || message.root_id || message.thread_id || message.message_id;
@@ -23,5 +18,5 @@ export function normalizeEvent(event, threadRoots = new Map()) {
   return { id: message.message_id, chatId: message.chat_id, userId: sender.sender_id?.open_id, isGroup, root,
     senderIds: Object.freeze({ userId: sender.sender_id?.user_id, unionId: sender.sender_id?.union_id, tenantKey: sender.tenant_key }),
     key: isGroup ? `${message.chat_id}:topic:${root}` : `${message.chat_id}:private`,
-    text: text.trim(), type: message.message_type, ...(attachments.length ? { attachments } : {}), ...(debugSleepMs === undefined ? {} : { debugSleepMs }) };
+    text: text.trim(), type: message.message_type, ...(mentions.length ? { mentions } : {}), ...(attachments.length ? { attachments } : {}), ...(debugSleepMs === undefined ? {} : { debugSleepMs }) };
 }

@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { withMentionHeader } from '../messages/index.js';
 import { createIdentityResolver, identityHeader } from '../identity/index.js';
 import { createSessionPool } from './sessions.js';
 import { generateAnswer } from './answer.js';
@@ -24,10 +25,10 @@ export async function createAgent(base, model, { getAnswerTimeoutMs = () => 0, l
           const input = message && prepareInput ? await prepareInput(message, { tools, signal: inputController.signal }) : { text, images: [] };
           inputController.signal.throwIfAborted();
           const title = summarize
-            ? summarizeIntent(pool.modelRuntime, session.model, text, base)
+            ? summarizeIntent(pool.modelRuntime, session.model, withMentionHeader(text, message), base)
               .catch(() => '对话回复').then(title => onEvent({ type: 'intent_title', title }))
             : Promise.resolve();
-          const output = await generateAnswer(session, input.text, onEvent, getAnswerTimeoutMs(), input.images);
+          const output = await generateAnswer(session, withMentionHeader(input.text, message), onEvent, getAnswerTimeoutMs(), input.images);
           await Promise.race([title, control.interrupted]);
           return output;
         } catch (error) {
