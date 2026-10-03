@@ -8,6 +8,8 @@ export const PERMISSIONS = Object.freeze([
   { scope: 'cardkit:card:write', level: '增强', purpose: '原生打字机卡片；缺少时降级为整卡更新' },
   { scope: 'im:message:readonly', level: '增强', purpose: '下载用户消息内的图片、文件及音视频；不主动检索历史消息' },
   { scope: 'im:resource:upload', level: '增强', purpose: '上传待发送的图片与文件；模型发送工具仅在 tools:all 时开放' },
+  { scope: 'contact:user.base:readonly', level: '增强', purpose: '按当前消息发起者 open_id 读取姓名；缺少时身份 header 仅保留事件 ID' },
+  { scope: 'contact:user.email:readonly', level: '增强', purpose: '在通讯录可见范围内读取发起者邮箱；缺少时邮箱标为未知' },
   { scope: 'im:message.group_msg', level: '按需敏感', purpose: '仅在需要接收非 @ 群消息时申请；还需显式调整群触发策略' },
 ].map(Object.freeze));
 
@@ -35,7 +37,7 @@ export function permissionsGuide(appId) {
     '  5. 将机器人加入测试群；用 owner 私聊及群 @ 验证收发、表情、卡片按钮。',
     '说明：send_as_bot 已覆盖当前发送/编辑接口，不必重复申请 im:message:update；',
     '已有 im:message 可覆盖部分发送/编辑/表情接口，但不替代接收事件权限，不建议为此扩大授权。',
-    '获取机器人自身信息和 card.action.trigger 无额外 scope；网关使用 open_id，不需通讯录/user_id 权限。',
+    '获取机器人自身信息和 card.action.trigger 无额外 scope；基础路由使用 open_id，不需 user_id 权限。姓名/邮箱补充需要上述通讯录权限及对应用户可见范围。',
     '附件接收需 im:message:readonly（或接口接受的历史读取权限）；仅有 im:resource 不能替代消息资源下载权限。',
     '上传也接受已有 im:resource；无需重复申请。图片识别还需视觉模型，音视频仅作为文件，不自动转写。',
     '无需为网关基础能力申请文档、云盘或日历权限；额外工具按具体用途另行授权。',

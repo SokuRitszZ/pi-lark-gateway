@@ -23,6 +23,8 @@
 | `cardkit:card:write` | 创建/更新 CardKit 实体、组件、流式配置，提供原生打字机效果 | 自动退回原来的整卡更新；普通文本模式不使用该能力 |
 | `im:message:readonly` | 获取用户消息内的图片、文件、音视频资源 | 附件下载失败并明确提示；文字仍可使用 |
 | `im:resource:upload` | 上传待发送的图片和普通文件 | 无法上传待发送附件；发送消息本身仍需 `im:message:send_as_bot` |
+| `contact:user.base:readonly` | 按事件发送者 open_id 补充姓名 | 身份 header 保留事件 ID，姓名未知 |
+| `contact:user.email:readonly` | 补充该发送者邮箱 | 邮箱未知，不从正文或历史推断 |
 
 **注意下载与上传不是同一组权限：**消息资源下载 API 接受 `im:message:readonly`、`im:message.history:readonly` 或更宽的 `im:message` 任一项；已有可用替代权限无需重复申请。上传 API 接受 `im:resource:upload` 或已有的 `im:resource`。不要仅开通 `im:resource` 就认为能够下载用户发来的图片。网关只下载通过准入的当前消息资源，不主动查询聊天历史。图片识别还需模型支持视觉，权限本身不能赋予模型视觉能力。
 
@@ -52,7 +54,7 @@
 ## 5. 当前不需要的权限
 
 - 获取机器人自身信息 `GET /open-apis/bot/v3/info` 不需要额外 API scope，但仍需应用凭据与机器人能力。
-- 网关使用 `open_id`，无需为接收敏感的 `user_id` 字段额外申请 `contact:user.employee_id:readonly`，也不需要全通讯录读取权限。
+- 基础路由使用 `open_id`，无需额外申请 `contact:user.employee_id:readonly`。姓名/邮箱增强通过 [获取单个用户信息](https://open.feishu.cn/document/server-docs/contact-v3/user/get) 查询当前发送者，需要上述通讯录权限及用户可见范围；不枚举全通讯录，不自动扩大授权。事件中未提供的 user_id / union_id 保持未知。
 - 不主动检索消息历史，无需成员管理、撤回消息权限。附件在准入、去重及排队之后下载；资源下载/上传的权限见上表。合并转发、卡片内资源和表情包不自动下载。
 - 无需文档、云盘、日历、邮件、任务、多维表格等业务权限。这些不是 gateway 的启动依赖；若另行启用相关 Pi 工具/扩展，再按具体用途和身份单独授权。
 - `/restart` 在网关内执行，仅需已有消息接收/回复权限和 owner/管理员授权，没有单独的飞书重启 scope。
@@ -67,7 +69,7 @@ npm run setup -- --permissions
 npm run --silent setup -- --permissions-json
 ```
 
-这两个命令不联网、不读取或覆盖配置，也不申请权限；现有用户可直接运行，无需重新扫码或录入密钥。推荐 JSON 包含基础 3 项和增强 5 项，使用 `scopes.tenant`，`scopes.user` 为空；不包含非 @ 群消息敏感权限。可将 JSON 用于控制台权限批量导入，仍须人工核对、发布并完成租户审批。
+这两个命令不联网、不读取或覆盖配置，也不申请权限；现有用户可直接运行，无需重新扫码或录入密钥。推荐 JSON 包含基础 3 项和增强 7 项，使用 `scopes.tenant`，`scopes.user` 为空；不包含非 @ 群消息敏感权限。可将 JSON 用于控制台权限批量导入，仍须人工核对、发布并完成租户审批。
 
 扫码和手动配置在保存凭据后都会显示同一份权限清单、当前应用权限链接、事件/回调订阅和发布检查步骤。程序不会自动修改已有应用权限、机器人访问策略或工具开关。
 

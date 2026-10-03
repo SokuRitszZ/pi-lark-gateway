@@ -1,3 +1,4 @@
+export { createUserProfiles } from './user-profile.js';
 export { createConnection } from './connection.js';
 export { createMetadata } from './metadata.js';
 export { createCards } from './cards.js';

@@ -11,6 +11,7 @@ export async function createSessionPool(base, model, options = {}) {
     ...options,
     createSession: (dir, tools, summary) => openConversation(modelRuntime, resolvedModel, dir, tools, summary, {
       customTools: tools === 'all' ? options.getCustomTools?.(dir) || [] : [],
+      getSenderHeader: options.getSenderHeader,
     }),
     summarize: (text, dir) => summarizeArchive(modelRuntime, resolvedModel, text, dir),
   });

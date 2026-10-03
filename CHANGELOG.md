@@ -3,6 +3,7 @@
 ## 1.0.0-rc.1 — GA candidate (not yet published)
 
 ### Added
+- Per-turn sender identity in the leading system prompt, sourced only from Feishu event IDs and matching directory records; bounded optional name/email lookup, unknown-field fallback, escaped data, and isolated turn context without rewriting conversation history.
 - Single-process limit of ten concurrent conversation tasks; FIFO waiting and per-conversation serialization.
 - Idle session archiving after 30 days: isolated summaries, private persistence, cleanup recovery, and summary-based continuation.
 - Manual Feishu setup with hidden secret input, local doctor, private stopped-service backups, and clean-home installation smoke test.

@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - id: meta
-        uses: SokuRitszZ/npm-release-action@5c5679ea86d68f72df2e82f1e1c1275dd9c3c09d
+        uses: SokuRitszZ/npm-release-action@e1b36cdc957a8f08311be813998e3d5f3f00edf4
         with:
           phase: plan
           working-directory: '.'
@@ -73,7 +73,7 @@ jobs:
       - run: npm install --global npm@11.12.1 --ignore-scripts
       - run: npm ci --ignore-scripts
       - id: bundle
-        uses: SokuRitszZ/npm-release-action@5c5679ea86d68f72df2e82f1e1c1275dd9c3c09d
+        uses: SokuRitszZ/npm-release-action@e1b36cdc957a8f08311be813998e3d5f3f00edf4
         with:
           phase: build
           version: ${{ needs.prepare.outputs.version }}
@@ -123,7 +123,7 @@ jobs:
         with:
           name: ${{ needs.prepare.outputs.artifactName }}
           path: ${{ runner.temp }}/npm-release
-      - uses: SokuRitszZ/npm-release-action@5c5679ea86d68f72df2e82f1e1c1275dd9c3c09d
+      - uses: SokuRitszZ/npm-release-action@e1b36cdc957a8f08311be813998e3d5f3f00edf4
         with:
           phase: publish-npm
           version: ${{ needs.prepare.outputs.version }}
@@ -160,7 +160,7 @@ jobs:
         with:
           name: ${{ needs.prepare.outputs.artifactName }}
           path: ${{ runner.temp }}/npm-release
-      - uses: SokuRitszZ/npm-release-action@5c5679ea86d68f72df2e82f1e1c1275dd9c3c09d
+      - uses: SokuRitszZ/npm-release-action@e1b36cdc957a8f08311be813998e3d5f3f00edf4
         with:
           phase: publish-github
           version: ${{ needs.prepare.outputs.version }}

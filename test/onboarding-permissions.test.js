@@ -19,7 +19,7 @@ test('recommended application scopes cover current features without sensitive or
   const data = permissionsJson();
   assert.deepEqual(data.scopes.tenant, [
     'im:message.p2p_msg:readonly', 'im:message.group_at_msg:readonly', 'im:message:send_as_bot',
-    'im:message.reactions:write_only', 'im:chat:read', 'cardkit:card:write', 'im:message:readonly', 'im:resource:upload',
+    'im:message.reactions:write_only', 'im:chat:read', 'cardkit:card:write', 'im:message:readonly', 'im:resource:upload', 'contact:user.base:readonly', 'contact:user.email:readonly',
   ]);
   assert.deepEqual(data.scopes.user, []);
   assert.equal(new Set(data.scopes.tenant).size, data.scopes.tenant.length);
@@ -27,7 +27,7 @@ test('recommended application scopes cover current features without sensitive or
   assert.equal(PERMISSIONS.find(item => item.scope === 'im:message.group_msg').level, '按需敏感');
   assert.ok(!data.scopes.tenant.includes('im:message.group_msg'));
   assert.ok(!data.scopes.tenant.includes('im:message'));
-  assert.ok(!data.scopes.tenant.some(scope => /contact:|drive:|calendar:/.test(scope)));
+  assert.ok(!data.scopes.tenant.some(scope => /drive:|calendar:|contact:user.employee_id:readonly/.test(scope)));
 });
 test('guide separates permissions from events and links the actual application safely', async () => {
   const guide = permissionsGuide('cli_fixture');
