@@ -3,14 +3,14 @@ import path from 'node:path';
 import os from 'node:os';
 import { defaultConfigPath, migrateConfig, loadConfig, watchConfig } from '../config/index.js';
 import { createThreadStore, createResponse } from '../messages/index.js';
-import { createMessageHandler } from '../adapters/lark/index.js';
-import { createApprovals } from '../approvals/index.js';
+import { createMessageHandler, normalizeAction, actionResponse } from '../adapters/lark/index.js';
+import { createApprovals } from '../adapters/lark/approvals/index.js';
 import { createAgent, sessionDirectory } from '../core/agent/index.js';
 import { createMedia, createMediaTool } from '../media/index.js';
 import { createGatewayIdentityResolver, promptPolicy } from '../adapters/lark/identity/index.js';
 import { createUserProfiles, createConnection, createMetadata, createCards, createReplies, createReactions, createResources } from '../lark/index.js';
 import { createRouter } from './route.js';
-import { createControls, canControlResponse } from '../controls/index.js';
+import { createControls, canControlResponse } from '../core/controls/index.js';
 import { createRestartControl, createRestartCommand } from '../restart/index.js';
 
 // Composition root only: concrete feature implementations live in their own directories.
@@ -70,7 +70,7 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
     await connection.start({
       'im.message.receive_v1': route,
       'card.action.trigger': event => event?.action?.value?.kind === 'response_control'
-        ? controls.handle(event) : approvals.handle(event),
+        ? actionResponse(controls.handle(normalizeAction(event))) : approvals.handle(event),
     });
   } catch {
     settings.close(); agent.abort();

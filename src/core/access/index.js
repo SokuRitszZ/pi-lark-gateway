@@ -1,3 +1,5 @@
+export { withGrant } from './grants.js';
+
 export function isAdmin(config, user) {
   return !!user && (user === config.access.owner || config.access.admins.includes(user));
 }
