@@ -3,14 +3,14 @@ import path from 'node:path';
 import os from 'node:os';
 import { createAgent } from '../core/agent/index.js';
 import { createMessageDispatcher } from '../core/messages/index.js';
-import { loadConfig, credentials } from './config.js';
+import { loadConfig, loadCredentials } from './config.js';
 import { createTransport } from '../adapters/qq/index.js';
 import { normalizeMessage, isAllowed, replyText } from '../adapters/qq/index.js';
 
 export async function startGateway({ configPath, discover = false, log = () => {}, onIdentity = () => {},
   createAgentImpl = createAgent, createTransportImpl = createTransport, env = process.env, dataRoot } = {}) {
   const config = await loadConfig(configPath, { discover });
-  const secret = credentials(env);
+  const secret = await loadCredentials(config, configPath, env);
   const base = path.join(dataRoot || path.join(os.homedir(), '.local/share/pi-qq-gateway'), config.appId);
   await fs.mkdir(base, { recursive: true, mode: 0o700 });
   const lockPath = path.join(base, 'runtime.lock');

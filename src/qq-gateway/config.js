@@ -37,6 +37,17 @@ export async function initConfig(file = defaultConfigPath()) {
   await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
   await fs.writeFile(file, JSON.stringify(exampleConfig, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
 }
+export async function loadCredentials(config, file = defaultConfigPath(), env = process.env) {
+  if (env.QQBOT_APP_SECRET) return credentials(env);
+  const name = config.credentialsFile;
+  if (typeof name !== 'string' || !/^credentials-[A-Za-z0-9-]+\.json$/.test(name)) throw new Error('missing_QQBOT_APP_SECRET');
+  const target = path.join(path.dirname(file), name);
+  const stat = await fs.lstat(target);
+  if (!stat.isFile() || (stat.mode & 0o077)) throw new Error('invalid_config:credentials_permissions');
+  const value = JSON.parse(await fs.readFile(target, 'utf8'));
+  return credentials({ QQBOT_APP_SECRET: value.appSecret });
+}
+
 export function credentials(env = process.env) {
   const secret = env.QQBOT_APP_SECRET;
   if (typeof secret !== 'string' || !secret.trim()) throw new Error('missing_QQBOT_APP_SECRET');

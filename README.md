@@ -4,6 +4,19 @@
 
 `release/1.1.0` 新增同仓库 **QQ 文本网关与 Pi 扩展入口**（实验性，待真实账号联调）。共用 core，独立配置、白名单和会话目录；不改变下方 Lark 用法。见 [QQ 接入指南](docs/QQ.md) 与 [分层架构](docs/ARCHITECTURE.md)。
 
+### 统一入口
+
+```bash
+npm run gateway          # 源码：菜单选择 Lark / QQ，再选择接入向导或启动
+# 安装到 PATH 后：
+pi-gateway
+pi-gateway qq setup      # QQ 向导：凭据、连接、模型、白名单
+pi-gateway qq start
+pi-gateway lark setup
+```
+
+QQ 密钥由向导隐藏输入并保存到 0600 私有文件，不必每次手工设置环境变量；测试身份可在向导中发现并确认授权。旧平台命令继续兼容，包名暂不改。
+
 npm 发布后可直接安装（当前候选版尚未上传）：
 
 ```bash

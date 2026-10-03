@@ -5,6 +5,30 @@ QQ 代码直接位于 **pi-lark-gateway 的 release/1.1.0**，不是另一个仓
 `src/qq-gateway/` 负责配置、组合与生命周期，共用 `src/core/`。
 Lark 的配置、命令及会话路径不变，两者可以使用不同账号同时运行。
 
+## 推荐：统一入口与接入向导
+
+源码安装后直接运行 `npm run gateway`（或 `node bin/pi-gateway.js`），选择 QQ → 接入向导。
+安装到 PATH 后命令名为 **`pi-gateway`**；旧命令保留兼容，npm 包名仍是 pi-lark-gateway。
+
+```bash
+pi-gateway               # 菜单选择 Lark / QQ，再选择配置或启动
+pi-gateway setup         # 选择平台并接入
+pi-gateway qq start      # 配好后直接启动
+```
+
+QQ 向导会依次询问 AppID、隐藏输入 AppSecret、连接方式和模型（尽量沿用本机 Pi 默认模型），
+然后保存私有配置；可直接连接发现测试身份，在你发送测试消息后选择候选并确认白名单。
+不需要再手工运行 init → 编辑密钥 → discover → 抄 OpenID → 改 JSON。
+陌生候选不会自动授权，重配前需确认，工具仍默认关闭。
+
+AppSecret 保存到配置目录下独立 `credentials-*.json`（0600），不是加密存储；
+`config.json` 只保存文件名。启动时无需反复设置环境变量；若设置了 `QQBOT_APP_SECRET`，它优先。
+不要把整个配置目录提交到 Git。重配会保留旧凭据文件，不自动删除。
+
+QQ 平台机器人创建、测试范围、权限及回调设置仍需在后台完成。
+选择 WebSocket 可省公网回调，但必须确认后台开放；Webhook 仍需公网 HTTPS。
+下面为手动配置和故障排查的完整说明，也适用于自动化部署。
+
 ## 已实现与边界
 
 - QQ 消息列表私聊（C2C）和群内 @；不支持频道 / 频道私信。
@@ -24,7 +48,7 @@ Lark 的配置、命令及会话路径不变，两者可以使用不同账号同
 ## 1. 准备 QQ 官方机器人
 
 1. 打开 [QQ 开放平台](https://q.qq.com/)，完成开发者登记并创建官方机器人。
-2. 在机器人开发设置获取 **AppID / AppSecret**。AppSecret 仅放服务端环境变量，
+2. 在机器人开发设置获取 **AppID / AppSecret**。AppSecret 仅通过本地向导保存为私有文件或注入服务端环境变量，
    不要发到群里、写进源码、截图或提交到 Git。
 3. 按后台可用能力配置测试账号与测试群，将机器人加到对应测试场景。
 4. 订阅 `C2C_MESSAGE_CREATE` 和 `GROUP_AT_MESSAGE_CREATE`。

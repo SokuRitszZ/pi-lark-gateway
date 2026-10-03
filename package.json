@@ -9,6 +9,7 @@
     "url": "git+https://github.com/SokuRitszZ/pi-lark-gateway.git"
   },
   "bin": {
+    "pi-gateway": "bin/pi-gateway.js",
     "pi-lark-gateway": "bin/pi-lark-gateway.js",
     "pi-qq-gateway": "bin/pi-qq-gateway.js"
   },
@@ -32,6 +33,7 @@
     "node": ">=22.21.0"
   },
   "scripts": {
+    "gateway": "node bin/pi-gateway.js",
     "setup": "node --use-env-proxy src/onboarding/index.js setup",
     "start": "node bin/pi-lark-gateway.js start",
     "start:qq": "node bin/pi-qq-gateway.js start",
