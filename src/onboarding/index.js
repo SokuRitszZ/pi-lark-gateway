@@ -64,7 +64,7 @@ async function main() {
     }
     await finishSetup({ configPath, credentials, startCommand });
   } catch (error) {
-    if (controller.signal.aborted || error.name === 'AbortError') { console.error('\n已取消。'); process.exitCode = 130; return; }
+    if (controller.signal.aborted || error.name === 'AbortError' || error.code === 'CLI_CANCELLED') { console.error('\n已取消。'); process.exitCode = 130; return; }
     if (credentials) console.error('已取得应用凭据，但本地保存失败。请在开放平台保管凭据；不会打印 App Secret。');
     else if (!values.manual) console.error(`扫码失败可使用 ${setupCommand} --manual 接入已有飞书应用。`);
     throw error;

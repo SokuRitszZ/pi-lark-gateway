@@ -6,6 +6,8 @@
 
 ### 统一入口
 
+使用 Commander + Clack：方向键单选、白名单多选、密码遮蔽、就地校验和连接进度。设计与键盘操作见 [CLI 交互设计](docs/CLI.md)。
+
 ```bash
 npm run gateway          # 源码：菜单选择 Lark / QQ，再选择接入向导或启动
 # 安装到 PATH 后：

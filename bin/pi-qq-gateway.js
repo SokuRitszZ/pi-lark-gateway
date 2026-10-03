@@ -4,7 +4,7 @@ import { startGateway, defaultConfigPath, initConfig, loadConfig, loadCredential
 const args = process.argv.slice(2), command = args.shift();
 const help = 'Usage: pi-qq-gateway setup|init|check|discover|start [--config /absolute/config.json]\nSecret: saved by setup (0600 file), or QQBOT_APP_SECRET environment override. Pi extension: /qq start|stop|status.';
 async function main() {
-  if (!command || ['--help', '-h', 'help'].includes(command)) { console.log(help); return; }
+  if (!command || ['--help', '-h', 'help'].includes(command) || (args.length === 1 && ['--help', '-h'].includes(args[0]))) { console.log(help); return; }
   let configPath = defaultConfigPath();
   if (args.length) {
     if (args.length !== 2 || args[0] !== '--config' || !args[1]) throw new Error('invalid_config:arguments');
@@ -25,4 +25,8 @@ async function main() {
     await gateway.done;
   } finally { process.off('SIGINT', stop); process.off('SIGTERM', stop); }
 }
-main().catch(error => { console.error(publicError(error)); process.exitCode = 1; });
+main().catch(async error => {
+  if (error.code === 'CLI_CANCELLED') {
+    const { createUI } = await import('../src/cli/index.js'); createUI().cancel(); process.exitCode = 130;
+  } else { console.error(publicError(error)); process.exitCode = 1; }
+});

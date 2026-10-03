@@ -49,9 +49,11 @@
     "backup": "node scripts/backup.js"
   },
   "dependencies": {
+    "@clack/prompts": "1.8.1",
     "@earendil-works/pi-coding-agent": "0.86.1",
     "@larksuiteoapi/node-sdk": "1.74.0",
     "@tencent-connect/qqbot-nodejs": "1.0.4",
+    "commander": "15.0.0",
     "https-proxy-agent": "^9.1.0",
     "qrcode": "1.5.4",
     "undici": "8.10.2"

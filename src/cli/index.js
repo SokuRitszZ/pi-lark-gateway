@@ -1,25 +1,24 @@
-export const HELP = `用法：pi-gateway [lark|qq] [命令] [参数]
-  无参数             交互选择平台和操作
-  pi-gateway setup   选择平台并运行接入向导
-  pi-gateway lark setup|start|doctor|backup|restart
-  pi-gateway qq setup|start|check|discover|init [--config 路径]
-  QQ setup 包含密钥安全保存、连接配置和白名单采集。
-  旧 pi-lark-gateway / pi-qq-gateway 命令继续兼容。
-  --help / --version`;
-
-export async function resolveCommand(argv, ask) {
+export { createUI, UserCancelled } from './ui.js';
+export async function resolveCommand(argv, ask, select) {
   const args = [...argv];
   let platform;
   if (['lark', 'qq'].includes(args[0])) platform = args.shift();
   else if (args[0] && args[0] !== 'setup') throw new Error('invalid_command');
   if (!platform) {
-    const choice = (await ask('选择平台：1 飞书/Lark  2 QQ：')).trim().toLowerCase();
+    const choice = select ? await select({ message: '选择消息平台', options: [
+      { value: 'lark', label: '飞书 / Lark', hint: '扫码接入 · 卡片回复 · 已有功能' },
+      { value: 'qq', label: 'QQ', hint: '官方机器人 · 私聊 / 群 @ · 文本首版' },
+    ] }) : (await ask('选择平台：1 飞书/Lark  2 QQ：')).trim().toLowerCase();
     platform = ({ '1': 'lark', lark: 'lark', '2': 'qq', qq: 'qq' })[choice];
     if (!platform) throw new Error('invalid_platform');
   }
   let command = args.shift();
   if (!command) {
-    const choice = (await ask('选择操作：1 接入向导  2 启动  3 本地检查 [1]：')).trim();
+    const choice = select ? await select({ message: `${platform === 'lark' ? '飞书' : 'QQ'} · 选择操作`, options: [
+      { value: '1', label: '接入向导', hint: '第一次使用或重新配置' },
+      { value: '2', label: '启动网关', hint: '使用已保存的配置' },
+      { value: '3', label: '本地检查', hint: '不启动连接' },
+    ] }) : (await ask('选择操作：1 接入向导  2 启动  3 本地检查 [1]：')).trim();
     command = ({ '': 'setup', '1': 'setup', '2': 'start', '3': platform === 'lark' ? 'doctor' : 'check' })[choice];
   }
   const allowed = platform === 'lark' ? ['setup', 'start', 'doctor', 'backup', 'restart', '--help', '-h'] : ['setup', 'start', 'check', 'discover', 'init', '--help', '-h'];
