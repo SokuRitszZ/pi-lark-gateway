@@ -6,7 +6,7 @@ export function createMessageDispatcher({ answer, reply, beginResponse, command 
   const queues = new Map();
   let closed = false;
   return {
-    /** @param {import('../contracts/index.js').GatewayMessage | null} m */
+    /** @param {import('../contracts/index.d.ts').GatewayMessage | null} m */
     accept(m, { commandName, executeCommand } = {}) {
       if (closed) return;
       if (!m || seen.has(m.id)) return;
