@@ -5,9 +5,9 @@ import { defaultConfigPath, migrateConfig, loadConfig, watchConfig } from '../co
 import { createThreadStore, createResponse } from '../messages/index.js';
 import { createMessageHandler } from '../adapters/lark/index.js';
 import { createApprovals } from '../approvals/index.js';
-import { createAgent, sessionDirectory } from '../agent/index.js';
+import { createAgent, sessionDirectory } from '../core/agent/index.js';
 import { createMedia, createMediaTool } from '../media/index.js';
-import { createIdentityResolver } from '../identity/index.js';
+import { createGatewayIdentityResolver, promptPolicy } from '../adapters/lark/identity/index.js';
 import { createUserProfiles, createConnection, createMetadata, createCards, createReplies, createReactions, createResources } from '../lark/index.js';
 import { createRouter } from './route.js';
 import { createControls, canControlResponse } from '../controls/index.js';
@@ -41,7 +41,7 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
   });
   const agent = await createAgent(base, config.model, {
     log, prepareInput: media.prepare,
-    resolveIdentity: createIdentityResolver({ getUser: createUserProfiles(connection.client) }),
+    resolveIdentity: createGatewayIdentityResolver({ getUser: createUserProfiles(connection.client) }), promptPolicy,
     getCustomTools: (dir, getTurn) => [createMediaTool(dir, getTurn, media.send)],
     getAnswerTimeoutMs: () => settings.get().config.answerTimeoutMs ?? 0,
   });

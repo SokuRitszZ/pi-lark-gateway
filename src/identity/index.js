@@ -1,2 +1,1 @@
-export { createIdentityResolver } from './sender.js';
-export { identityHeader, senderIdentityExtension } from './prompt.js';
+export * from '../adapters/lark/identity/index.js';

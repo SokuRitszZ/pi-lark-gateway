@@ -41,7 +41,7 @@ test('fake response handles model failure and always cleans up', async () => {
 });
 
 test('core dependency graph cannot reach platform SDKs or legacy features', async () => {
-  const allowedExternal = new Set();
+  const allowedExternal = new Set(['@earendil-works/pi-coding-agent']);
   const visited = new Set();
   async function visit(url) {
     if (visited.has(url.href)) return;

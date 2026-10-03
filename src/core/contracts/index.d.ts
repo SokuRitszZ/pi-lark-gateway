@@ -1,10 +1,18 @@
 /** Platform-native identity containers; optional by design, not an exclusive union. */
 export interface PIGateway {
   Lark?: {
-    open_id?: string | null;
-    user_id?: string | null;
-    union_id?: string | null;
-    tenant_key?: string | null;
+    source?: string;
+    message_id?: string | null;
+    chat_id?: string | null;
+    chat_type?: string;
+    sender: {
+      open_id?: string | null;
+      user_id?: string | null;
+      union_id?: string | null;
+      tenant_key?: string | null;
+    };
+    profile_status?: string;
+    profile?: { name: string | null; en_name: string | null; email: string | null };
   };
   /** QQ fields will be specified against verified platform events. */
   QQ?: Record<string, unknown>;
