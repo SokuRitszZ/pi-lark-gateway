@@ -3,8 +3,19 @@ import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { createUI } from '../cli/index.js';
-import { defaultConfigPath, exampleConfig, validateConfig } from './config.js';
+import { defaultConfigPath, exampleConfig, validateConfig, loadConfig } from './config.js';
 import { startGateway } from './gateway.js';
+
+async function saveConfig(file, config) {
+  const temporary = `${file}.${randomUUID()}.tmp`;
+  try { await fs.writeFile(temporary, JSON.stringify(config, null, 2) + '\n', { flag: 'wx', mode: 0o600 }); await fs.rename(temporary, file); }
+  finally { await fs.unlink(temporary).catch(() => {}); }
+}
+
+function setupStatus(config) {
+  try { validateConfig(config); return { ready: true }; }
+  catch { return { ready: false }; }
+}
 
 export async function setupQQ({ file = defaultConfigPath(), ask, say = console.log, start = startGateway, modelDefaults = {}, progress = async (_label, task) => task() } = {}) {
   let existing;
@@ -44,19 +55,27 @@ export async function setupQQ({ file = defaultConfigPath(), ask, say = console.l
   const credentialsFile = `credentials-${randomUUID()}.json`;
   await fs.writeFile(path.join(path.dirname(file), credentialsFile), JSON.stringify({ appSecret: secret }) + '\n', { flag: 'wx', mode: 0o600 });
   config.credentialsFile = credentialsFile;
-  const save = async () => {
-    const temporary = `${file}.${randomUUID()}.tmp`;
-    try { await fs.writeFile(temporary, JSON.stringify(config, null, 2) + '\n', { flag: 'wx', mode: 0o600 }); await fs.rename(temporary, file); }
-    finally { await fs.unlink(temporary).catch(() => {}); }
-  };
+  const save = () => saveConfig(file, config);
   await save();
   say(`配置已保存：${file}。工具默认关闭。模型授权复用当前系统用户的 Pi 配置。`);
   say('启动时若存在 QQBOT_APP_SECRET 环境变量，将优先于本地凭据文件。');
-  if ((await ask('现在连接 QQ，采集测试账号身份？', false, { kind: 'confirm', initialValue: true })).trim().toLowerCase() === 'n') return;
+  if ((await ask('现在连接 QQ，采集测试账号身份？', false, { kind: 'confirm', initialValue: true })).trim().toLowerCase() === 'n') return setupStatus(config);
+  return collectAccess({ file, config, ask, say, start, progress, save, env: {} });
+}
+
+export async function authorizeQQ({ file = defaultConfigPath(), ask, say = console.log, start = startGateway,
+  progress = async (_label, task) => task(), env = process.env } = {}) {
+  const config = await loadConfig(file, { discover: true });
+  say('复用现有配置与凭据；只补充你明确确认的白名单，不重填密钥。');
+  if (config.transport === 'webhook') say(`请确认公网 HTTPS 回调转发至本地端口 ${config.webhook.port}；随后从 QQ 发送测试消息。`);
+  return collectAccess({ file, config, ask, say, start, progress, env, save: () => saveConfig(file, config) });
+}
+
+async function collectAccess({ file, config, ask, say, start, progress, save, env }) {
   const candidates = new Map();
   let gateway;
   try {
-    gateway = await progress('启动 QQ 接入，等待就绪', () => start({ configPath: file, discover: true, env: {}, onIdentity: identity => {
+    gateway = await progress('启动 QQ 接入，等待就绪', () => start({ configPath: file, discover: true, env, onIdentity: identity => {
       const qq = identity.QQ, key = JSON.stringify([qq.chat_type, qq.group_openid, qq.sender]);
       if (!candidates.has(key) && candidates.size < 20) {
         candidates.set(key, qq);
@@ -67,15 +86,16 @@ export async function setupQQ({ file = defaultConfigPath(), ask, say = console.l
     await ask('发送测试消息后按 Enter，查看收到的身份', false, { placeholder: '不调用模型、不自动授权' });
   } finally { await gateway?.close(); }
   const entries = [...candidates.values()];
-  if (!entries.length) { say('未收到事件。配置已保存，请检查平台权限/回调后再次 setup，或运行 discover。'); return; }
+  if (!entries.length) { say('未收到事件，未增加授权。请检查平台权限/回调，再运行 pi-gateway qq authorize。'); return setupStatus(config); }
   const choice = (await ask('选择你确认要授权的身份（空格勾选，回车继续）', false, { kind: 'multiselect', options: entries.map((qq, i) => ({
     value: String(i + 1), label: `${qq.chat_type === 'c2c' ? '私聊' : '群聊'} · ${qq.sender.user_openid || qq.sender.member_openid}`,
     hint: qq.group_openid ? `群 ${qq.group_openid}` : '仅此私聊账号',
   })) })).trim();
-  if (!choice) return;
+  if (!choice) return setupStatus(config);
   const indexes = choice.split(',').map(s => Number(s.trim()));
   if (!indexes.every(n => Number.isInteger(n) && n >= 1 && n <= entries.length)) throw new Error('invalid_config:selection');
-  if ((await ask('确认授权选中的身份？工具保持关闭', false, { kind: 'confirm', initialValue: false })).trim().toLowerCase() !== 'y') return;
+  const warning = config.tools === 'all' ? '当前工具为 all，授权者将可使用宿主机工具（非沙箱）' : '工具保持关闭';
+  if ((await ask(`确认授权选中的身份？${warning}`, false, { kind: 'confirm', initialValue: false })).trim().toLowerCase() !== 'y') return setupStatus(config);
   for (const i of indexes) {
     const qq = entries[i - 1];
     if (qq.chat_type === 'c2c') config.access.c2cUsers = [...new Set([...config.access.c2cUsers, qq.sender.user_openid])];
@@ -86,12 +106,13 @@ export async function setupQQ({ file = defaultConfigPath(), ask, say = console.l
   }
   validateConfig(config); await save();
   say('白名单已保存。运行 pi-gateway qq start，或在本机 Pi 中 /qq start。');
+  return setupStatus(config);
 }
 
-export async function promptSetupQQ(file) {
+export async function promptSetupQQ(file, { authorizeOnly = false } = {}) {
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('invalid_config:interactive_terminal_required');
   const ui = createUI();
-  ui.intro('Pi Gateway · QQ 接入向导');
+  ui.intro(authorizeOnly ? 'Pi Gateway · QQ 初始化白名单' : 'Pi Gateway · QQ 初始化配置');
   ui.note('凭据 → 连接与模型 → 测试身份 → 确认授权\n默认关闭工具；按 Ctrl+C 或 Esc 取消。', '接入流程');
   let modelDefaults = {};
   try {
@@ -99,6 +120,8 @@ export async function promptSetupQQ(file) {
     modelDefaults = { provider: typeof settings.defaultProvider === 'string' ? settings.defaultProvider : undefined,
       id: typeof settings.defaultModel === 'string' ? settings.defaultModel : undefined };
   } catch {}
-  await setupQQ({ file, modelDefaults, ask: ui.ask, say: ui.info, progress: ui.progress });
-  ui.outro('向导结束 · 下一步：pi-gateway qq check / pi-gateway qq start');
+  const result = await (authorizeOnly ? authorizeQQ : setupQQ)({ file, modelDefaults, ask: ui.ask, say: ui.info, progress: ui.progress });
+  if (!result) ui.outro('未重新配置；已有文件未改变。');
+  else if (result.ready) ui.outro('本地配置与白名单已就绪 · 下一步：pi-gateway qq start（自定义配置沿用 --config）');
+  else ui.outro('初始化尚未完成，暂不能启动 · 运行 pi-gateway qq authorize 完成白名单（自定义配置沿用 --config）');
 }

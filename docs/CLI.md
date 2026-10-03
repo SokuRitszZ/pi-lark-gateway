@@ -18,7 +18,8 @@
 pi-gateway                     # 方向键选择平台与操作
 pi-gateway setup               # 选择平台并进入向导
 pi-gateway setup qq            # 与 qq setup 等价
-pi-gateway qq setup
+pi-gateway qq setup             # 初始化基础配置，并引导授权
+pi-gateway qq authorize         # 复用配置补齐白名单，修复 empty_allowlist
 pi-gateway qq start --config /path/to/config.json
 pi-gateway lark setup --manual
 pi-gateway --help
@@ -35,6 +36,7 @@ pi-gateway --help
 
 QQ 基础配置保存之后，如果取消身份发现/授权，已保存文件会保留；未确认的身份不会授权。
 向导既有的原子写入、0600 凭据文件和账户锁规则不变。
+基础配置存在不等于可启动；白名单为空时不显示就绪提示，启动错误会给出 authorize 恢复命令。init 只写模板，不替代 setup。
 
 ## 实现与回归
 

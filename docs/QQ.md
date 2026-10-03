@@ -5,6 +5,20 @@ QQ 代码直接位于 **pi-lark-gateway 的 release/1.1.0**，不是另一个仓
 `src/qq-gateway/` 负责配置、组合与生命周期，共用 `src/core/`。
 Lark 的配置、命令及会话路径不变，两者可以使用不同账号同时运行。
 
+## 遇到 `empty_allowlist`：继续初始化白名单
+
+这个错误表示配置文件已有，但还没有确认授权任何 QQ 身份，**不是需要放开安全检查**。
+
+```bash
+pi-gateway qq authorize
+# 若之前使用自定义配置，沿用同一路径：
+pi-gateway qq authorize --config /path/to/config.json
+```
+
+此入口复用已有 AppID、密钥及模型设置，不需要重新填写。连接就绪后，从自己的 QQ 私聊机器人或在测试群 @；发送后回车，空格勾选身份，再确认授权。完成后执行 `pi-gateway qq start`（同样沿用自定义 `--config`）。
+
+菜单现在区分「初始化配置 / 接入向导」和「初始化 / 补充白名单」。没有配置时先运行 `pi-gateway qq setup`；`init` 只生成模板，不代表初始化完成。跳过身份采集、没收到消息或拒绝授权时，向导明确提示暂不能启动。未收到消息要先检查 QQ 后台权限及 Webhook HTTPS 回调。
+
 ## 推荐：统一入口与接入向导
 
 源码安装后直接运行 `npm run gateway`（或 `node bin/pi-gateway.js`），选择 QQ → 接入向导。

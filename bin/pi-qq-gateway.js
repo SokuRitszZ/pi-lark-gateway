@@ -2,7 +2,7 @@
 import { startGateway, defaultConfigPath, initConfig, loadConfig, loadCredentials, publicError } from '../src/qq-gateway/index.js';
 
 const args = process.argv.slice(2), command = args.shift();
-const help = 'Usage: pi-qq-gateway setup|init|check|discover|start [--config /absolute/config.json]\nSecret: saved by setup (0600 file), or QQBOT_APP_SECRET environment override. Pi extension: /qq start|stop|status.';
+const help = 'Usage: pi-qq-gateway setup|authorize|init|check|discover|start [--config /absolute/config.json]\nSecret: saved by setup (0600 file), or QQBOT_APP_SECRET environment override. Pi extension: /qq start|stop|status.';
 async function main() {
   if (!command || ['--help', '-h', 'help'].includes(command) || (args.length === 1 && ['--help', '-h'].includes(args[0]))) { console.log(help); return; }
   let configPath = defaultConfigPath();
@@ -10,8 +10,8 @@ async function main() {
     if (args.length !== 2 || args[0] !== '--config' || !args[1]) throw new Error('invalid_config:arguments');
     configPath = args[1];
   }
-  if (command === 'setup') { const { promptSetupQQ } = await import('../src/qq-gateway/setup.js'); await promptSetupQQ(configPath); return; }
-  if (command === 'init') { await initConfig(configPath); console.log(`Created ${configPath}; edit configuration, do not store secrets here.`); return; }
+  if (['setup', 'authorize'].includes(command)) { const { promptSetupQQ } = await import('../src/qq-gateway/setup.js'); await promptSetupQQ(configPath, { authorizeOnly: command === 'authorize' }); return; }
+  if (command === 'init') { await initConfig(configPath); console.log(`Created template ${configPath}; not ready to start. Run pi-gateway qq setup (keep --config if customized) to configure credentials and authorize identities.`); return; }
   if (command === 'check') { const config = await loadConfig(configPath); await loadCredentials(config, configPath); console.log('Local configuration valid; QQ/model connectivity not tested.'); return; }
   if (!['start', 'discover'].includes(command)) throw new Error('invalid_config:command');
   let gateway, stopping = false;
