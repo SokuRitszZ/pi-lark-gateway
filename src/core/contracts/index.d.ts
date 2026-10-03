@@ -14,8 +14,14 @@ export interface PIGateway {
     profile_status?: string;
     profile?: { name: string | null; en_name: string | null; email: string | null };
   };
-  /** QQ fields will be specified against verified platform events. */
-  QQ?: Record<string, unknown>;
+  QQ?: {
+    source: 'qq_gateway';
+    app_id: string;
+    message_id: string;
+    chat_type: 'c2c' | 'group';
+    group_openid: string | null;
+    sender: { user_openid?: string; member_openid?: string };
+  };
 }
 
 /** Normalized message within one platform/account-scoped gateway instance.

@@ -1,14 +1,16 @@
 {
   "name": "pi-lark-gateway",
   "version": "1.0.0-rc.1",
-  "description": "Self-hosted Feishu gateway for the Pi coding agent SDK",
+  "description": "Self-hosted Lark and QQ gateways for the Pi coding agent SDK",
+  "pi": { "extensions": ["./src/qq-gateway/extension.js"] },
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/SokuRitszZ/pi-lark-gateway.git"
   },
   "bin": {
-    "pi-lark-gateway": "bin/pi-lark-gateway.js"
+    "pi-lark-gateway": "bin/pi-lark-gateway.js",
+    "pi-qq-gateway": "bin/pi-qq-gateway.js"
   },
   "files": [
     "bin/",
@@ -32,6 +34,7 @@
   "scripts": {
     "setup": "node --use-env-proxy src/onboarding/index.js setup",
     "start": "node bin/pi-lark-gateway.js start",
+    "start:qq": "node bin/pi-qq-gateway.js start",
     "restart": "node scripts/restart.js",
     "test": "node --test",
     "check": "node scripts/check.js",
@@ -46,6 +49,7 @@
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.86.1",
     "@larksuiteoapi/node-sdk": "1.74.0",
+    "@tencent-connect/qqbot-nodejs": "1.0.4",
     "https-proxy-agent": "^9.1.0",
     "qrcode": "1.5.4",
     "undici": "8.10.2"
