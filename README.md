@@ -2,6 +2,8 @@
 
 飞书官方 SDK WebSocket → pi SDK → 原地更新回复。Node >=22.21。GA 支持范围仅国内飞书，国际版 Lark 不在支持承诺内。
 
+`release/1.1.0` 新增同仓库 **QQ 文本网关与 Pi 扩展入口**（实验性，待真实账号联调）。共用 core，独立配置、白名单和会话目录；不改变下方 Lark 用法。见 [QQ 接入指南](docs/QQ.md) 与 [分层架构](docs/ARCHITECTURE.md)。
+
 npm 发布后可直接安装（当前候选版尚未上传）：
 
 ```bash
@@ -47,7 +49,10 @@ owner/管理员可在飞书发送以 `/restart` 为首个指令的文本或纯�
 ```text
 src/
 ├── index.js             # 进程启动、代理、退出信号
-├── gateway/             # 应用组装、事件处理流程编排
+├── core/                # 共享 Agent、权限、调度、身份与媒体安全
+├── adapters/            # lark / qq 平台协议与呈现
+├── qq-gateway/          # QQ 配置、装配及 Pi 扩展入口
+├── gateway/             # Lark 应用装配与生命周期
 ├── onboarding/          # 初始化 CLI、注册协议
 ├── config/              # schema、持久化迁移、策略、热加载
 ├── approvals/           # 审批服务、申请条件、卡片渲染

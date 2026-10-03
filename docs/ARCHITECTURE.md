@@ -15,7 +15,9 @@
   core. This release does not turn the CLI into a Pi extension.
 - Legacy directories (`agent`, `identity`, `messages`, `media`, `lark`, `controls`,
   `approvals`, `progress`, `debug`) retain compatibility exports/facades. The live
-  composition uses the new boundaries. Compatibility paths are not new extension
+  composition uses the new boundaries. QQ has a separate composition/CLI/extension
+  in `src/qq-gateway/`, sharing core without importing Lark adapters.
+  Compatibility paths are not new extension
   points for other platforms.
 
 ## Contracts
@@ -39,8 +41,10 @@ This is an optional-field interface, **not** an exclusive union. Empty or multip
 branches are representable. The trusted ingress/instance determines the active
 platform; the existence of a branch does not grant authority. Lark's runtime
 branch retains the native `sender.open_id`, additional typed IDs, profile status
-and matched profile data. QQ fields are intentionally unspecified until verified
-against that platform; QQ transport is not implemented in this repository.
+and matched profile data. QQ preserves `user_openid` for C2C and `member_openid`
+plus `group_openid` for groups, based on the pinned SDK's event mapping. QQ
+transport is implemented under `src/adapters/qq/`; see `docs/QQ.md` for scope and
+remaining live-account verification.
 
 The live Lark path resolves `{ Lark: nativeIdentity }`, then core injects it in
 `gateway_sender_identity` for the current turn. Legacy identity imports preserve
@@ -107,5 +111,6 @@ errors may be published as diagnostics.
 Run `npm test`, `npm run check`, `npm run setup -- --help` and `git diff --check`.
 Tests do not prove live credentials, platform permissions or production network
 connectivity. A separately authorized deployment should include real Lark smoke
-checks. Extracting a public shared package and implementing QQ remain separate
-work, not acceptance criteria for this repository's internal layering.
+checks. Extracting a public shared package remains separate work. QQ text ingress/reply
+and local Pi commands are implemented in-repo; actual QQ account verification,
+media and advanced interactions remain separate follow-up work.
