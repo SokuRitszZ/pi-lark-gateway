@@ -12,7 +12,7 @@ test('workflow contract separates unprivileged validation from exact-artifact pu
   assert.match(release, /branches: \['release\/\*'\]/); assert.match(release, /types: \[closed\]/);
   assert.match(release, /group: release-run-\$\{\{ github.run_id \}\}/); assert.match(release, /cancel-in-progress: false/);
   assert.match(release, /pull_request.merged == true/); assert.match(release, /head.repo.full_name == github.repository/);
-  const action = 'SokuRitszZ/npm-release-action@5c5679ea86d68f72df2e82f1e1c1275dd9c3c09d';
+  const action = 'SokuRitszZ/npm-release-action@c8f64fb95b299b733e3468deb51ab33affc83a75';
   assert.equal(release.split(`uses: ${action}`).length - 1, 4);
   for (const phase of ['plan', 'build', 'publish-npm', 'publish-github']) assert.ok(release.includes(`phase: ${phase}\n`));
   for (const setting of ["working-directory: '.'", "release-branch-prefix: 'release/'", 'main-branch: main',
