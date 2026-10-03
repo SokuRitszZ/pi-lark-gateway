@@ -4,15 +4,14 @@ import os from 'node:os';
 import { defaultConfigPath, migrateConfig, loadConfig, watchConfig } from '../config/index.js';
 import { createThreadStore } from '../core/messages/index.js';
 import { createResponse } from '../adapters/lark/presentation/index.js';
-import { createMessageHandler, normalizeAction, actionResponse } from '../adapters/lark/index.js';
+import { createMessageHandler, createRouter, createRestartCommand, startIngress } from '../adapters/lark/index.js';
 import { createApprovals } from '../adapters/lark/approvals/index.js';
 import { createAgent, sessionDirectory } from '../core/agent/index.js';
 import { createMedia, createMediaTool } from '../adapters/lark/media/index.js';
 import { createGatewayIdentityResolver, promptPolicy } from '../adapters/lark/identity/index.js';
 import { createUserProfiles, createConnection, createMetadata, createCards, createReplies, createReactions, createResources } from '../adapters/lark/sdk/index.js';
-import { createRouter } from './route.js';
 import { createControls, canControlResponse } from '../core/controls/index.js';
-import { createRestartControl, createRestartCommand } from '../restart/index.js';
+import { createRestartControl } from '../restart/index.js';
 
 // Composition root only: concrete feature implementations live in their own directories.
 export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || defaultConfigPath(), log, onRestart } = {}) {
@@ -68,11 +67,7 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
   const route = createRouter({ getState, approvals, handler, threads, reply: replies.reply, log });
   try {
     if (onRestart) restartControl = await createRestartControl({ base, isIdle: () => ready && handler.isIdle(), restart: onRestart, log });
-    await connection.start({
-      'im.message.receive_v1': route,
-      'card.action.trigger': event => event?.action?.value?.kind === 'response_control'
-        ? actionResponse(controls.handle(normalizeAction(event))) : approvals.handle(event),
-    });
+    await startIngress(connection, { route, controls, approvals });
   } catch {
     settings.close(); agent.abort();
     await Promise.allSettled([restartControl?.close(), connection.close(), handler.drain(), approvals.drain(), agent.dispose()]);

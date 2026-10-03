@@ -1,11 +1,12 @@
 import { createRouter as createCoreRouter } from '../../core/routing/index.js';
-import { transformDebugEvent } from '../../debug/index.js';
-import { isRestartCommand } from '../../restart/index.js';
+import { transformDebugEvent } from './debug.js';
+import { isRestartCommand } from './restart.js';
 import { accessMessage } from './access.js';
 import { normalizeEvent } from './normalize.js';
 
 export function createRouter({ getState, approvals, handler, threads, reply, log }) {
   return raw => {
+    if (handler.isClosed?.()) return;
     const initial = getState();
     const commandName = isRestartCommand(raw, initial.config.bot.openId) ? 'restart' : undefined;
     const transformed = commandName ? { event: raw } : transformDebugEvent(raw, initial.config.access.owner);

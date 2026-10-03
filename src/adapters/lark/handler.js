@@ -22,6 +22,7 @@ export function createMessageHandler({ threadRoots = new Map(), random = Math.ra
     },
     acceptMessage: dispatcher.accept,
     commandFor: event => message => command(message, event),
+    isClosed: () => closed,
     isIdle: dispatcher.isIdle,
     drain() { closed = true; return dispatcher.drain(); },
   };

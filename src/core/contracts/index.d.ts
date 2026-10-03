@@ -18,7 +18,9 @@ export interface PIGateway {
   QQ?: Record<string, unknown>;
 }
 
-/** Transitional normalized message: preserve existing Lark session keys and fields. */
+/** Normalized message within one platform/account-scoped gateway instance.
+ * Field names and session keys intentionally preserve the existing storage contract.
+ */
 export interface GatewayMessage {
   id: string;
   key: string;
@@ -39,4 +41,41 @@ export interface GatewayResponse {
   event?(event: unknown): void;
   finish(text: string, options?: { error: boolean }): Promise<void>;
   stop(): Promise<void>;
+  onSession?(session: unknown | null): void;
+  summarizeIntent?: boolean;
+  appendImage?(image: unknown, options?: { isActive: () => boolean }): Promise<string>;
+}
+
+export interface AccessMessage {
+  id?: string;
+  chatId: string;
+  userId?: string;
+  isGroup: boolean;
+  text: string;
+  mentioned: boolean;
+}
+
+export interface GatewayAction {
+  value?: { kind: string; id: string; action?: string; decision?: string };
+  actorId?: string;
+  messageId?: string;
+  eventId?: string;
+  instruction?: string;
+}
+
+/** Both identifiers and policies must belong to the same account scope. */
+export interface GatewayIngressPacket {
+  access: AccessMessage | null;
+  readonly message: GatewayMessage | null;
+  commandName?: string;
+  executeCommand?: (message: GatewayMessage) => string | undefined | Promise<string | undefined>;
+  debugLabel?: string;
+}
+
+export interface MediaDeliveryContext {
+  signal?: AbortSignal;
+  uuid?: string;
+  /** Recheck after uploads and before external delivery. */
+  allowed(): boolean;
+  appendImage?: GatewayResponse['appendImage'];
 }
