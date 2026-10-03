@@ -1,4 +1,4 @@
-import { extractAttachments } from '../../media/index.js';
+import { extractAttachments } from './media/index.js';
 import { extractMentionText } from './mentions.js';
 
 // Lark ingress normalization. Policy admission remains outside this parser.

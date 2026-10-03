@@ -1,5 +1,5 @@
 import { createMessageDispatcher } from '../../core/messages/index.js';
-import { mediaErrorText } from '../../media/index.js';
+import { mediaErrorText } from '../../core/media/index.js';
 import { normalizeEvent } from './normalize.js';
 
 export const REACTION_EMOJIS = ['SMILE', 'THUMBSUP', 'OK', 'HEART', 'CLAP'];
