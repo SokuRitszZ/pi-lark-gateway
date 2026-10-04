@@ -17,6 +17,8 @@ pi-gateway qq start
 pi-gateway lark setup
 ```
 
+统一入口的 `start` 在 macOS/Linux 默认后台运行，配套 `status` / `stop` / `logs`；调试用 `start --foreground`。不自动接管已有前台或系统服务，也不配置开机自启。
+
 QQ 密钥由向导隐藏输入并保存到 0600 私有文件，不必每次手工设置环境变量；测试身份可在向导中发现并确认授权。旧平台命令继续兼容，包名暂不改。
 
 npm 发布后可直接安装（当前候选版尚未上传）：

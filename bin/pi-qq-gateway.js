@@ -19,14 +19,19 @@ async function main() {
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
   try {
     gateway = await startGateway({ configPath, discover: command === 'discover',
-      log: code => console.log(code), onIdentity: identity => console.log(JSON.stringify(identity)),
+      log: code => { console.log(code); if (process.connected && /^[a-z][a-z0-9_]{0,100}$/.test(code)) process.send({ type: 'gateway_log', code }, () => {}); }, onIdentity: identity => console.log(JSON.stringify(identity)),
     });
     if (stopping) await gateway.close();
+    else if (process.connected) process.send({ type: 'gateway_ready' }, () => {});
     await gateway.done;
   } finally { process.off('SIGINT', stop); process.off('SIGTERM', stop); }
 }
 main().catch(async error => {
   if (error.code === 'CLI_CANCELLED') {
     const { createUI } = await import('../src/cli/index.js'); createUI().cancel(); process.exitCode = 130;
-  } else { console.error(publicError(error)); process.exitCode = 1; }
+  } else {
+    const diagnostic = publicError(error); console.error(diagnostic);
+    if (process.connected) process.send({ type: 'gateway_failed', diagnostic }, () => {});
+    process.exitCode = 1;
+  }
 });

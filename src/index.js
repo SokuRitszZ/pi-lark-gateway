@@ -5,9 +5,14 @@ import { RESTART_EXIT_CODE } from './restart/index.js';
 
 setGlobalDispatcher(new EnvHttpProxyAgent());
 process.umask(0o077);
-const log = event => console.log(new Date().toISOString(), event);
+const log = event => {
+  console.log(new Date().toISOString(), event);
+  if (process.connected && /^[a-z][a-z0-9_]{0,100}$/.test(event)) process.send({ type: 'gateway_log', code: event }, () => {});
+};
 
-let requestRestart;
+let requestRestart, requestStop, stopRequested = false;
+const signalStop = () => { stopRequested = true; void requestStop?.(); };
+process.once('SIGINT', signalStop); process.once('SIGTERM', signalStop);
 startGateway({ log, onRestart: () => requestRestart() }).then(gateway => {
   const releaseAwake = keepAwakeOnPower(log);
   let stopping = false;
@@ -21,6 +26,7 @@ startGateway({ log, onRestart: () => requestRestart() }).then(gateway => {
     catch { log('shutdown_failed'); process.exit(1); }
   };
   requestRestart = () => { void stop(RESTART_EXIT_CODE); };
-  process.once('SIGINT', () => { void stop(); });
-  process.once('SIGTERM', () => { void stop(); });
+  requestStop = stop;
+  if (stopRequested) { void stop(); return; }
+  if (process.connected) process.send({ type: 'gateway_ready' }, () => {});
 }).catch(() => { log('startup_failed_check_configuration_and_network'); process.exitCode = 1; });

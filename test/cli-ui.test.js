@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildProgram } from '../src/cli/program.js';
+import { runServicePlan } from '../src/cli/service.js';
 import { createUI, UserCancelled } from '../src/cli/index.js';
 
 const cli = choices => {
@@ -10,6 +11,14 @@ const cli = choices => {
   for (const command of [program, ...program.commands]) command.configureOutput({ writeOut: text => output.push(text), writeErr: text => output.push(text) });
   return { program, plans, output, parse: args => program.parseAsync(args, { from: 'user' }) };
 };
+test('foreground is opt-in and preserves explicit platform configuration', async () => {
+  for (const platform of ['qq', 'lark']) {
+    const plan = { platform, args: ['start', '--foreground', '--config', '/tmp/test config.json'] };
+    assert.equal(await runServicePlan(plan), false);
+    if (platform === 'qq') assert.deepEqual(plan.args, ['start', '--config', '/tmp/test config.json']);
+    else { assert.deepEqual(plan.args, ['start']); assert.equal(plan.env.PI_LARK_CONFIG, '/tmp/test config.json'); }
+  }
+});
 test('Commander preserves delegated flags and paths without prompting', async () => {
   const app = cli([]); await app.parse(['qq', 'start', '--config', '/tmp/a b/config.json']);
   assert.deepEqual(app.plans[0].args, ['start', '--config', '/tmp/a b/config.json']);

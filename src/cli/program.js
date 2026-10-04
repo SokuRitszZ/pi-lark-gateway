@@ -16,7 +16,7 @@ export function buildProgram({ version, ui, run }) {
   };
   program.action(() => dispatch([]));
   for (const platform of ['lark', 'qq']) {
-    program.command(platform).description(platform === 'lark' ? '飞书：setup / start / doctor / backup / restart' : 'QQ：setup / authorize / start / check / discover / init')
+    program.command(platform).description(platform === 'lark' ? '飞书：setup / start / status / stop / logs / doctor / backup / restart' : 'QQ：setup / authorize / start / status / stop / logs / check / discover / init')
       .argument('[command]', '平台命令；省略则显示菜单').argument('[args...]', '传递给平台命令的参数')
       .allowUnknownOption().passThroughOptions()
       .action((command, args) => dispatch([platform, ...(command ? [command] : []), ...args]));
@@ -27,6 +27,6 @@ export function buildProgram({ version, ui, run }) {
       if (args[0] && !args[0].startsWith('-') && !['lark', 'qq'].includes(args[0])) throw new Error('invalid_platform');
       return dispatch(['lark', 'qq'].includes(args[0]) ? [args[0], 'setup', ...args.slice(1)] : ['setup', ...args]);
     });
-  program.addHelpText('after', `\n示例：\n  pi-gateway                  方向键选择平台和操作\n  pi-gateway setup            选择平台并接入\n  pi-gateway qq setup          QQ 接入向导\n  pi-gateway qq start          使用已有配置启动\n  pi-gateway lark setup --manual\n\n自动化请显式指定平台和命令；旧命令仍可使用。`);
+  program.addHelpText('after', `\n示例：\n  pi-gateway                  方向键选择平台和操作\n  pi-gateway setup            选择平台并接入\n  pi-gateway qq setup          QQ 接入向导\n  pi-gateway qq start          后台启动；--foreground 前台调试\n  pi-gateway lark setup --manual\n\n自动化请显式指定平台和命令；旧命令仍可使用。`);
   return program;
 }
