@@ -31,6 +31,7 @@ export function createTransport(config, secret, { log = () => {}, onFailure = ()
       try { await readiness; } catch (error) { closed = true; server.close(); bot.stop(); throw error; }
       finally { clearTimeout(timer); }
     },
+    openStream(target) { return bot.openStream({ target, throttleMs: 300 }); },
     notifyProcessing(target) {
       if (target.scope === 'c2c') return bot.sendTyping(target, 30);
       if (target.scope === 'group') return bot.sendText(target, '⏳ 正在处理，请稍候…');

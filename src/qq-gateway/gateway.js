@@ -5,7 +5,7 @@ import { createAgent } from '../core/agent/index.js';
 import { createMessageDispatcher } from '../core/messages/index.js';
 import { loadConfig, loadCredentials } from './config.js';
 import { createTransport } from '../adapters/qq/index.js';
-import { normalizeMessage, isAllowed, replyText } from '../adapters/qq/index.js';
+import { normalizeMessage, isAllowed, createQQResponse } from '../adapters/qq/index.js';
 
 export async function startGateway({ configPath, discover = false, log = () => {}, onIdentity = () => {},
   createAgentImpl = createAgent, createTransportImpl = createTransport, env = process.env, dataRoot } = {}) {
@@ -38,8 +38,8 @@ export async function startGateway({ configPath, discover = false, log = () => {
     if (!discover) agent = await createAgentImpl(base, config.model, {
       log, getAnswerTimeoutMs: () => config.answerTimeoutMs,
       promptPolicy: {
-        full: '你通过 QQ 与用户对话。当前支持一次性最终文本回复（可使用 Markdown 排版，不支持交互按钮或原地流式更新）；附件尚未解析，不能发送文件或图片。工具运行于宿主机，不是沙箱。群回复所有成员可见，不公开凭据和私人数据。破坏性操作、对外发送前确认。基于工具结果报告操作。',
-        restricted: '你是通过 QQ 对话的助手。用用户语言简洁回答，可使用简洁 Markdown 排版；不支持交互按钮或原地流式更新。没有工具，不要声称已操作宿主机或解析附件。群回复所有成员可见。',
+        full: '你通过 QQ 与用户对话。私聊支持 Markdown 流式更新；群聊先提示处理中，再发送最终 Markdown 回复。不支持交互按钮；附件尚未解析，不能发送文件或图片。工具运行于宿主机，不是沙箱。群回复所有成员可见，不公开凭据和私人数据。破坏性操作、对外发送前确认。基于工具结果报告操作。',
+        restricted: '你是通过 QQ 对话的助手。用用户语言简洁回答，可使用简洁 Markdown 排版；私聊可流式更新，群聊先提示处理中再发最终回复，不支持交互按钮。没有工具，不要声称已操作宿主机或解析附件。群回复所有成员可见。',
       },
     });
     transport = createTransportImpl(config, secret, { log, onFailure: () => { log('qq_transport_stopped'); void close().catch(() => log('qq_close_failed')); } });
@@ -53,20 +53,11 @@ export async function startGateway({ configPath, discover = false, log = () => {
         if (!closed) {
           try {
             if (config.experimentalChannelReactions === true) await transport.probeChannelReaction?.(message.target);
-            else if (config.processingFeedback === true) await transport.notifyProcessing?.(message.target);
+            else if (config.processingFeedback !== false && message.target.scope === 'group') await transport.notifyProcessing?.(message.target);
           } catch { log('qq_processing_feedback_failed'); }
         }
-        let attempted = false;
-        return {
-          async finish(text) {
-            // One final send only: never resend an ambiguous network failure.
-            if (attempted || closed) return;
-            attempted = true;
-            if (Date.now() - message.receivedAt > 120000) { log('qq_reply_expired'); return; }
-            await transport.sendText(message.target, replyText(text));
-          },
-          async stop() { pending.delete(message.key); },
-        };
+        return createQQResponse({ message, config, transport, log, isClosed: () => closed,
+          onStop: () => pending.delete(message.key) });
       },
     });
     transport.onMessage(raw => {

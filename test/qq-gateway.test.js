@@ -112,9 +112,26 @@ test('feedback is opt-in, only follows admitted messages, and failure does not b
     });
     receive({ ...raw('denied'), senderId: 'other' }); receive(raw('ok')); receive(raw('ok'));
     await tick(); await gateway.close();
-    assert.deepEqual(sent, ['ok']); assert.deepEqual(notices, mode === 'off' ? [] : [mode]);
+    assert.deepEqual(sent, ['ok']); assert.deepEqual(notices, mode === 'probe' ? ['probe'] : []); // C2C streams instead of sending a receipt.
     assert.ok(!logs.join(' ').includes('private detail'));
   }
+});
+
+test('group receipt precedes generation and final reply by default, without duplicate receipts', async t => {
+  const { root, configPath, config } = await fixture(t);
+  config.access.groups = { group: ['user'] }; delete config.processingFeedback;
+  await fs.writeFile(configPath, JSON.stringify(config));
+  const order = []; let receive;
+  const gateway = await startGateway({ configPath, dataRoot: root, env: { QQBOT_APP_SECRET: 'fake' },
+    createAgentImpl: async () => ({ answer: async () => { order.push('answer'); return 'done'; }, abort() {}, dispose: async () => {} }),
+    createTransportImpl: () => ({ onMessage: fn => { receive = fn; }, start: async () => {}, close: async () => {},
+      notifyProcessing: async target => { assert.equal(target.scope, 'group'); order.push('receipt'); },
+      openStream: () => assert.fail('groups must not open a stream'), sendText: async () => order.push('final'),
+    }),
+  });
+  const event = { ...raw('group-event'), kind: 'group', groupOpenid: 'group', rawEventType: 'GROUP_AT_MESSAGE_CREATE' };
+  receive(event); receive(event); await tick(); await gateway.close();
+  assert.deepEqual(order, ['receipt', 'answer', 'final']);
 });
 
 test('failed transport startup disposes the agent and unlocks account', async t => {
