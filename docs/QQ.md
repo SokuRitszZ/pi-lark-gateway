@@ -5,6 +5,16 @@ QQ 代码直接位于 **pi-lark-gateway 的 release/1.1.0**，不是另一个仓
 `src/qq-gateway/` 负责配置、组合与生命周期，共用 `src/core/`。
 Lark 的配置、命令及会话路径不变，两者可以使用不同账号同时运行。
 
+## 表情回应实验与处理提示
+
+官方出处：[发表表情表态](https://bot.q.qq.com/wiki/develop/api/openapi/reaction/put_message_reaction.html)。文档定义 `PUT /channels/{channel_id}/messages/{message_id}/reactions/{type}/{id}`，`channel_id` 是子频道 ID，成功为 HTTP 204。没有证据证明群/私聊的 openid 可替代它。
+
+按用户要求提供隔离的假设验证开关：`"experimentalChannelReactions": true`。默认关闭；开启后，每个进程对**私聊和群聊各一条**已通过白名单与去重检查的新消息尝试频道路径，使用原生目标 ID 作为实验候选路径参数，绝不修改身份模型或将其宣称为有效频道 ID。PUT 请求限时 3 秒、不重试；错误只记录安全的 HTTP 状态码，不阻断正常回复。`qq_reaction_probe_*_accepted` 仅代表 API 接受，仍需客户端确认贴图效果；失败也可能源于权限、消息或参数问题，不能据此断言平台绝不支持。
+
+另有可选 `"processingFeedback": true`：私聊用官方正在输入提示（30 秒），群聊另发一条“⏳ 正在处理”。这不是原消息上的表情。默认关闭；若实验开关同时开启，优先实验，不再另发群提示。提示发送失败仍继续回答，不自动重试。
+
+修改配置后用 `pi-gateway qq restart` 加载，再从已授权的私聊与群各发一条消息，通过 `pi-gateway qq logs` 查看实验结果。当前实现已离线验证；未默认对真实账号执行实验。
+
 ## Markdown 回复与工具
 
 默认通过官方 SDK 的 `sendMarkdown` 发送最终回复（`msg_type=2`），适用于 C2C 和群 @，保留原生回复目标及消息 ID。可使用简洁 Markdown 排版；不是飞书式可更新卡片，暂不提供按钮、流式编辑或工具进度卡片。
@@ -15,7 +25,7 @@ Lark 的配置、命令及会话路径不变，两者可以使用不同账号同
 
 ## 启动后返回终端与查看失败原因
 
-统一入口 `pi-gateway qq start` 在 macOS / Linux 默认后台运行；使用 `status` 看状态、`logs` 看安全诊断码、`stop` 请求安全退出。调试时使用 `pi-gateway qq start --foreground`。自定义配置的这些命令均沿用同一个 `--config`。
+统一入口 `pi-gateway qq start` 在 macOS / Linux 默认后台运行；使用 `status` 看状态、`logs` 看安全诊断码、`stop` 请求安全退出，`restart` 等待旧后台退出后重新启动。调试时使用 `pi-gateway qq start --foreground`。自定义配置的这些命令均沿用同一个 `--config`。
 
 已有前台实例不会自动迁移：先在原终端 Ctrl+C 停止，再启动后台实例。旧 `pi-qq-gateway start` 和 `node bin/pi-qq-gateway.js start` 保持前台行为。后台运行不等于开机自启，具体行为见 [CLI 运行管理](CLI.md#后台运行与诊断)。
 

@@ -96,6 +96,27 @@ test('QQ final-only response tolerates real agent progress events without UNKNOW
   assert.deepEqual(sent, ['ok']); assert.ok(!logs.includes('message_failed'));
 });
 
+test('feedback is opt-in, only follows admitted messages, and failure does not block answers', async t => {
+  for (const mode of ['off', 'native', 'probe']) {
+    const { root, configPath, config } = await fixture(t);
+    config.processingFeedback = mode === 'native'; config.experimentalChannelReactions = mode === 'probe';
+    await fs.writeFile(configPath, JSON.stringify(config));
+    let receive; const notices = [], sent = [], logs = [];
+    const gateway = await startGateway({ configPath, dataRoot: root, env: { QQBOT_APP_SECRET: 'fake' }, log: code => logs.push(code),
+      createAgentImpl: async () => ({ answer: async () => 'ok', abort() {}, dispose: async () => {} }),
+      createTransportImpl: () => ({ onMessage: fn => { receive = fn; }, start: async () => {}, close: async () => {},
+        notifyProcessing: async () => { notices.push('native'); throw new Error('private detail'); },
+        probeChannelReaction: async () => { notices.push('probe'); throw new Error('private detail'); },
+        sendText: async (_target, text) => sent.push(text),
+      }),
+    });
+    receive({ ...raw('denied'), senderId: 'other' }); receive(raw('ok')); receive(raw('ok'));
+    await tick(); await gateway.close();
+    assert.deepEqual(sent, ['ok']); assert.deepEqual(notices, mode === 'off' ? [] : [mode]);
+    assert.ok(!logs.join(' ').includes('private detail'));
+  }
+});
+
 test('failed transport startup disposes the agent and unlocks account', async t => {
   const { root, configPath } = await fixture(t); let disposed = 0;
   const options = { configPath, dataRoot: root, env: { QQBOT_APP_SECRET: 'test-only' },

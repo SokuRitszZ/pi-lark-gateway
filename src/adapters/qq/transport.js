@@ -1,4 +1,5 @@
 import { QQBot } from '@tencent-connect/qqbot-nodejs';
+import { createChannelReactionProbe } from './reaction-probe.js';
 import { createWebhookServer } from './webhook-server.js';
 export function createTransport(config, secret, { log = () => {}, onFailure = () => {}, Bot = QQBot } = {}) {
   const server = createWebhookServer(config.webhook?.host);
@@ -12,6 +13,7 @@ export function createTransport(config, secret, { log = () => {}, onFailure = ()
   });
   let work, closed = false, ready = false;
   return {
+    probeChannelReaction: createChannelReactionProbe(bot, log),
     onMessage(handler) { bot.on('message', (_context, raw) => handler(raw)); },
     async start() {
       let resolveReady, rejectReady;
@@ -28,6 +30,10 @@ export function createTransport(config, secret, { log = () => {}, onFailure = ()
       const timer = setTimeout(() => rejectReady(new Error('qq_start_timeout')), 30000);
       try { await readiness; } catch (error) { closed = true; server.close(); bot.stop(); throw error; }
       finally { clearTimeout(timer); }
+    },
+    notifyProcessing(target) {
+      if (target.scope === 'c2c') return bot.sendTyping(target, 30);
+      if (target.scope === 'group') return bot.sendText(target, '⏳ 正在处理，请稍候…');
     },
     sendText(target, text) {
       // Explicit format; keep a plain-text escape hatch for accounts with restrictions.

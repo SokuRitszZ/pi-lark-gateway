@@ -40,6 +40,17 @@ test('Markdown preserves C2C/group reply targets, supports text override, and ne
   await assert.rejects(markdown.sendText({ scope: 'group', targetId: 'g', msgId: 'm' }, 'fail'));
   assert.equal(calls.length, before + 1);
 });
+test('processing feedback uses native C2C typing and a plain group receipt', async () => {
+  const calls = [];
+  class Bot {
+    async sendTyping(target, duration) { calls.push(['typing', target, duration]); }
+    async sendText(target, text) { calls.push(['text', target, text]); }
+  }
+  const transport = createTransport({ appId: 'app', transport: 'websocket' }, 'fake', { Bot });
+  const c2c = { scope: 'c2c', targetId: 'u', msgId: 'm1' }, group = { scope: 'group', targetId: 'g', msgId: 'm2' };
+  await transport.notifyProcessing(c2c); await transport.notifyProcessing(group);
+  assert.deepEqual(calls, [['typing', c2c, 30], ['text', group, '⏳ 正在处理，请稍候…']]);
+});
 test('transport startup failure is redacted and closes resources', async () => {
   let stops = 0;
   class Bot { on() {} async start() { throw new Error('credential-secret'); } stop() { stops++; } }

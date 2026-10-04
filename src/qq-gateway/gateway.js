@@ -48,6 +48,14 @@ export async function startGateway({ configPath, discover = false, log = () => {
       answer: (...args) => { if (closed) throw new Error('gateway_closed'); return agent.answer(...args); },
       reply: async () => {},
       beginResponse: async message => {
+        // Authorized, deduplicated messages only. Settle feedback before the final
+        // reply so a group receipt cannot intentionally be queued after the answer.
+        if (!closed) {
+          try {
+            if (config.experimentalChannelReactions === true) await transport.probeChannelReaction?.(message.target);
+            else if (config.processingFeedback === true) await transport.notifyProcessing?.(message.target);
+          } catch { log('qq_processing_feedback_failed'); }
+        }
         let attempted = false;
         return {
           async finish(text) {
