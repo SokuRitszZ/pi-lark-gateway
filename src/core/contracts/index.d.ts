@@ -14,6 +14,17 @@ export interface PIGateway {
     profile_status?: string;
     profile?: { name: string | null; en_name: string | null; email: string | null };
   };
+  Telegram?: {
+    source: 'telegram_gateway';
+    bot_id: string;
+    chat_id: string;
+    message_id: string;
+    message_thread_id: string | null;
+    chat_type: 'private' | 'group' | 'supergroup';
+    sender: { user_id: string; username: string | null };
+    /** Owner-only synthetic policy subject; never a Telegram user ID. */
+    simulation?: { label: string; policy_subject_id: string };
+  };
   QQ?: {
     source: 'qq_gateway';
     app_id: string;

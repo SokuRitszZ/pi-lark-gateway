@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { defaultConfigPath as larkConfig } from '../config/index.js';
+import { defaultConfigPath as tgConfig } from '../tg-gateway/config/index.js';
 import { defaultConfigPath as qqConfig } from '../qq-gateway/config.js';
 import { servicePaths, startService, restartService, serviceStatus, serviceRequest, readServiceLog } from '../runtime/service.js';
 
@@ -7,17 +8,17 @@ export async function runServicePlan(plan) {
   const [command, ...originalArgs] = plan.args;
   const foreground = command === 'start' && originalArgs.includes('--foreground');
   const args = foreground ? originalArgs.filter(a => a !== '--foreground') : originalArgs;
-  if (plan.platform === 'lark' && command === 'restart') return false; // Existing idle/deferred restart protocol.
+  if (['lark', 'tg'].includes(plan.platform) && command === 'restart') return false; // Existing idle/deferred restart protocol.
   if (!['start', 'restart', 'status', 'stop', 'logs'].includes(command) || args.some(a => ['--help', '-h'].includes(a))) return false;
   try {
-    let configPath = plan.platform === 'qq' ? qqConfig() : process.env.PI_LARK_CONFIG || larkConfig();
+    let configPath = plan.platform === 'qq' ? qqConfig() : plan.platform === 'tg' ? tgConfig() : process.env.PI_LARK_CONFIG || larkConfig();
     if (args.length) {
       if (args.length !== 2 || args[0] !== '--config' || !args[1]) throw new Error('用法：start|restart|status|stop|logs [--config 路径]；前台调试用 start --foreground');
       configPath = args[1];
     }
     configPath = path.resolve(configPath);
     if (foreground) {
-      plan.args = plan.platform === 'qq' ? ['start', ...args] : ['start'];
+      plan.args = plan.platform !== 'lark' ? ['start', ...args] : ['start'];
       if (plan.platform === 'lark') plan.env = { PI_LARK_CONFIG: configPath };
       return false;
     }

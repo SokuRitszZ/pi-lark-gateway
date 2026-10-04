@@ -2,19 +2,21 @@
 
 飞书官方 SDK WebSocket → pi SDK → 原地更新回复。Node >=22.21。GA 支持范围仅国内飞书，国际版 Lark 不在支持承诺内。
 
-`release/1.1.0` 新增同仓库 **QQ 文本网关与 Pi 扩展入口**（实验性，待真实账号联调）。共用 core，独立配置、白名单和会话目录；不改变下方 Lark 用法。见 [QQ 接入指南](docs/QQ.md) 与 [分层架构](docs/ARCHITECTURE.md)。
+`release/1.1.0` 新增同仓库 **QQ、Telegram 网关与 Pi 扩展入口**。共用 core，独立配置、白名单和会话目录；不改变下方 Lark 用法。Telegram 使用 grammY，已实现并通过离线测试，尚未用真实 token 验收。见 [QQ 接入指南](docs/QQ.md)、[Telegram 接入与功能对照](docs/TELEGRAM.md) 和 [分层架构](docs/ARCHITECTURE.md)。
 
 ### 统一入口
 
 使用 Commander + Clack：方向键单选、白名单多选、密码遮蔽、就地校验和连接进度。设计与键盘操作见 [CLI 交互设计](docs/CLI.md)。
 
 ```bash
-npm run gateway          # 源码：菜单选择 Lark / QQ，再选择接入向导或启动
+npm run gateway          # 源码：菜单选择 Lark / QQ / Telegram，再选择接入向导或启动
 # 安装到 PATH 后：
 pi-gateway
 pi-gateway qq setup      # QQ 向导：凭据、连接、模型、白名单
 pi-gateway qq start
 pi-gateway lark setup
+pi-gateway tg setup      # Telegram：BotFather token、模型、确认 owner
+pi-gateway tg start      # 默认 tools:none；引用/流式编辑/按钮/附件
 ```
 
 统一入口的 `start` 在 macOS/Linux 默认后台运行，配套 `status` / `stop` / `logs`；调试用 `start --foreground`。不自动接管已有前台或系统服务，也不配置开机自启。
@@ -67,8 +69,9 @@ owner/管理员可在飞书发送以 `/restart` 为首个指令的文本或纯�
 src/
 ├── index.js             # 进程启动、代理、退出信号
 ├── core/                # 共享 Agent、权限、调度、身份与媒体安全
-├── adapters/            # lark / qq 平台协议与呈现
+├── adapters/            # lark / qq / telegram 平台协议与呈现
 ├── qq-gateway/          # QQ 配置、装配及 Pi 扩展入口
+├── tg-gateway/          # Telegram 配置、装配、向导、备份及 Pi 扩展
 ├── gateway/             # Lark 应用装配与生命周期
 ├── onboarding/          # 初始化 CLI、注册协议
 ├── config/              # schema、持久化迁移、策略、热加载

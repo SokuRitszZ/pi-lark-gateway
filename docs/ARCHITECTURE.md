@@ -4,7 +4,7 @@
 
 - `src/core/`: account-scoped policy, normalized routing, queue/dedup, approvals,
   run controls, Pi agent/session runtime, identity prompt injection, safe media
-  storage/send authorization and persistence. No chat-platform SDK or adapter
+  storage/send authorization, sanitized progress timelines and persistence. No chat-platform SDK or adapter
   imports. Pi SDK is the execution engine and is allowed here.
 - `src/adapters/lark/`: Lark event/access/mention parsing, directory lookup,
   command/debug parsing, action callbacks, SDK transport, card/progress rendering,
@@ -12,11 +12,17 @@
   belong here, not in core.
 - `src/gateway/index.js`: composition and lifecycle of this Lark deployment.
   Configuration, onboarding and process/restart infrastructure remain outside
-  core. This release does not turn the CLI into a Pi extension.
+  core. The Lark CLI lifecycle remains unchanged; QQ and Telegram expose separate local Pi extension commands.
 - Legacy directories (`agent`, `identity`, `messages`, `media`, `lark`, `controls`,
   `approvals`, `progress`, `debug`) retain compatibility exports/facades. The live
   composition uses the new boundaries. QQ has a separate composition/CLI/extension
   in `src/qq-gateway/`, sharing core without importing Lark adapters.
+- `src/adapters/telegram/`: grammY/network/media transport, normalized ingress and
+  bounded admission, native debug/mention/callback parsing, rich-text entities,
+  chat pacing, stable edits and webhook validation. `src/tg-gateway/` composes
+  core and owns platform configuration, setup, account locks, policy watching,
+  backups and its local Pi extension. Its config subfeature has a lightweight
+  `config/index.js` entry for the service CLI, without loading Telegram/Pi SDKs.
   Compatibility paths are not new extension
   points for other platforms.
 
@@ -34,6 +40,7 @@ into one core instance or infer account ownership from a display name.
 interface PIGateway {
   Lark?: LarkIdentity;
   QQ?: QQIdentity;
+  Telegram?: TelegramIdentity;
 }
 ```
 
@@ -44,7 +51,10 @@ branch retains the native `sender.open_id`, additional typed IDs, profile status
 and matched profile data. QQ preserves `user_openid` for C2C and `member_openid`
 plus `group_openid` for groups, based on the pinned SDK's event mapping. QQ
 transport is implemented under `src/adapters/qq/`; see `docs/QQ.md` for scope and
-remaining live-account verification.
+remaining live-account verification. Telegram preserves numeric native IDs as
+strings (`bot_id`, `chat_id`, `message_id`, optional topic and sender `user_id`),
+with per-bot/chat/topic/member session keys. Its owner-only synthetic debug
+policy subject never replaces the real native sender ID; see `docs/TELEGRAM.md`.
 
 The live Lark path resolves `{ Lark: nativeIdentity }`, then core injects it in
 `gateway_sender_identity` for the current turn. Legacy identity imports preserve
@@ -78,7 +88,12 @@ The injected response factory returns progress `event`, `finish`, `stop` and
 optional session binding/title/image hooks. Lark implements card/plain text,
 CardKit fallback, pagination, markdown and tool timeline in its adapter. A new
 platform can instead supply a final-only response or just `reply`; it need not
-implement cards or editable messages.
+implement cards or editable messages. Telegram uses a stable quoted placeholder,
+coalesced edits, sanitized shared-core timeline data and up to 12 final pages.
+It maps forms to `/steer`, and card images to native photo/file messages. Reactions
+are best effort. Explicit API 429 failures can be retried within a bounded window;
+ambiguous sends are not replayed. A dispatcher `onSettled` hook releases adapter
+admission capacity only after final sends, response cleanup and reactions finish.
 
 Core media validates current-turn authorization, active/cancel state, workspace
 and file paths; prepares safe local attachments and model image inputs; and
@@ -111,6 +126,7 @@ errors may be published as diagnostics.
 Run `npm test`, `npm run check`, `npm run setup -- --help` and `git diff --check`.
 Tests do not prove live credentials, platform permissions or production network
 connectivity. A separately authorized deployment should include real Lark smoke
-checks. Extracting a public shared package remains separate work. QQ text ingress/reply
-and local Pi commands are implemented in-repo; actual QQ account verification,
-media and advanced interactions remain separate follow-up work.
+checks. Extracting a public shared package remains separate work. QQ and Telegram
+implementation/verification scopes are recorded in their platform guides;
+offline Telegram tests do not constitute live token, webhook, media or client
+acceptance. No platform inherits another platform's tool grant or live config.

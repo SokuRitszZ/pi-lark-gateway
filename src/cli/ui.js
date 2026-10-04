@@ -24,7 +24,7 @@ export function createUI(prompts = clack, interactive = process.stdin.isTTY && p
       return result(await prompts.text({ message, defaultValue: options.defaultValue, placeholder: options.defaultValue || options.placeholder,
         validate: options.validate, signal }));
     },
-    async progress(label, task) {
+    async progress(label, task, successLabel = '接入已就绪') {
       check();
       let cancelled = false;
       const spinner = prompts.spinner({ signal, onCancel: () => { cancelled = true; }, cancelMessage: '正在取消，等待连接收尾…' });
@@ -32,7 +32,7 @@ export function createUI(prompts = clack, interactive = process.stdin.isTTY && p
       try {
         const value = await task();
         if (cancelled) { await value?.close?.(); throw new UserCancelled(); }
-        spinner.stop('QQ 接入已就绪'); return value;
+        spinner.stop(successLabel); return value;
       } catch (error) {
         if (cancelled) throw new UserCancelled();
         spinner.error('连接未完成，请检查凭据、网络及平台配置'); throw error;

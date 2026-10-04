@@ -22,6 +22,8 @@ pi-gateway qq setup             # 初始化基础配置，并引导授权
 pi-gateway qq authorize         # 复用配置补齐白名单，修复 empty_allowlist
 pi-gateway qq start --config /path/to/config.json
 pi-gateway lark setup --manual
+pi-gateway tg setup             # BotFather token、模型、消息识别 owner
+pi-gateway tg authorize         # 确认 owner 或添加私聊/群成员（需先停止本账号）
 pi-gateway --help
 ```
 
@@ -54,7 +56,8 @@ pi-gateway qq start --foreground  # 前台调试；Ctrl+C 退出
 Lark 的 start/status/stop/logs 使用相同管理方式；`pi-gateway lark restart` 继续沿用已有的空闲后延迟重启协议，不立即停止当前回复。
 
 QQ restart 仅管理本 CLI 的后台服务：先请求安全停止，最多等待 20 秒；未退出时不会启动第二个实例，也不会删除账号锁。服务已停止时相当于 start，不接管前台或扩展实例；重启可能中断正在生成的 QQ 回复，请在空闲时使用。自定义配置的启动、状态、日志和停止都要沿用同一个 `--config 路径`。
-旧 `pi-qq-gateway start` / `pi-lark-gateway start` 仍保持前台行为。
+Telegram 使用同一套 start/status/stop/logs；`pi-gateway tg restart` 与聊天 `/restart` 使用空闲延迟协议，不套用 QQ 的立即停止式重启。另有显式 `webhook-register` 和需停机确认的 `backup`。详见 [Telegram 功能与验收边界](TELEGRAM.md)。
+旧 `pi-qq-gateway start` / `pi-lark-gateway start` / `pi-tg-gateway start` 仍保持前台行为。
 
 - 仅管理本 CLI 启动的后台服务；不自动接管或停止现有前台、Pi 扩展或 launchd 实例。
 - 若已在旧终端运行，请先自行 Ctrl+C 安全停止，再启动后台实例。账号锁不会被自动删除。
@@ -68,7 +71,7 @@ QQ restart 仅管理本 CLI 的后台服务：先请求安全停止，最多等�
 
 - `src/cli/program.js`：Commander 子命令树，只生成/执行受支持的分发计划。
 - `src/cli/ui.js`：Clack 边界；取消转为可识别错误，密码只经 password 组件。
-- `src/qq-gateway/setup.js`：业务流程注入 ask/progress，不依赖终端实现，可单元测试。
+- `src/qq-gateway/setup.js` / `src/tg-gateway/setup.js`：业务流程注入 ask/progress，不依赖终端实现，可单元测试。Telegram 不会把已保存但尚无 owner 的配置标成完成；Webhook 还需明确注册。
 - 飞书手动凭据输入也使用统一 UI；扫码创建协议、二维码及其他运维命令不变。
 - 命令入口仍保留旧名称，`pi-gateway -v` 和 `help` 兼容。
 

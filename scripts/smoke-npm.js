@@ -24,8 +24,8 @@ try {
   const install = spawnSync('npm', ['install', '--global', '--prefix', prefix, artifact.file, '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: home, env, stdio: 'inherit', timeout: 600000 });
   if (install.error || install.status !== 0) throw new Error('npm_install_failed');
   const cli = path.join(prefix, 'bin/pi-lark-gateway');
-  function check(args, status, pattern) {
-    const result = spawnSync(cli, args, { cwd: home, env, encoding: 'utf8', timeout: 30000 });
+  function check(args, status, pattern, binary = cli) {
+    const result = spawnSync(binary, args, { cwd: home, env, encoding: 'utf8', timeout: 30000 });
     if (result.status !== status || !pattern.test(result.stdout + result.stderr)) throw new Error('npm_cli_failed');
     return result;
   }
@@ -41,6 +41,9 @@ try {
   check(['restart'], 1, /restart_request_failed/);
   check(['setup', '--domain', 'lark'], 1, /仅支持国内飞书/);
   check(['start'], 1, /startup_failed_check_configuration_and_network/);
-  console.log(`npm tarball install and CLI smoke passed (${process.version}); no npm publication, live model or Feishu calls.`);
+  check(['tg', '--help'], 0, /Telegram/, path.join(prefix, 'bin/pi-gateway'));
+  check(['--help'], 0, /webhook-register/, path.join(prefix, 'bin/pi-tg-gateway'));
+  check(['check'], 1, /tg_config_missing/, path.join(prefix, 'bin/pi-tg-gateway'));
+  console.log(`npm tarball install and CLI smoke passed (${process.version}); no publication, live model or messaging-platform calls.`);
 } catch { console.error('npm_smoke_failed'); process.exitCode = 1; }
 finally { await fs.rm(temp, { recursive: true, force: true }); }

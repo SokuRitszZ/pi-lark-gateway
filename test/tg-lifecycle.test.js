@@ -1,0 +1,38 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { exampleConfig, dataDirectory } from '../src/tg-gateway/index.js';
+import { backupTelegram } from '../src/tg-gateway/backup.js';
+import { startService, servicePaths, serviceStatus } from '../src/runtime/service.js';
+const exec = promisify(execFile);
+test('Telegram managed startup reports configuration failure without a token or network call', async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'tg-service-test-')), file = path.join(dir, 'config.json');
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.writeFile(file, JSON.stringify({ ...structuredClone(exampleConfig), botId: '123' }));
+  const paths = servicePaths('tg', file, dir);
+  await assert.rejects(startService({ platform: 'tg', configPath: file, paths, timeoutMs: 10000 }), /invalid_config:owner/);
+  for (let i = 0; i < 100 && (await serviceStatus(paths)).status !== 'stopped'; i++) await sleep(20);
+  assert.equal((await serviceStatus(paths)).status, 'stopped');
+  const logs = await fs.readFile(paths.log, 'utf8'); assert.match(logs, /startup_invalid_config_owner/); assert.doesNotMatch(logs, /bot\d+:/);
+});
+test('Telegram local backup requires explicit stopped confirmation, refuses locks/symlinks and creates private archives', async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'tg-backup-test-')), previousHome = process.env.HOME;
+  process.env.HOME = dir;
+  t.after(async () => { if (previousHome === undefined) delete process.env.HOME; else process.env.HOME = previousHome; await fs.rm(dir, { recursive: true, force: true }); });
+  const config = { ...structuredClone(exampleConfig), botId: '123' }; config.access.owner = '7';
+  const file = path.join(dir, 'config.json'), output = path.join(dir, 'backup.tar.gz'); await fs.writeFile(file, JSON.stringify(config));
+  await assert.rejects(backupTelegram(file, output), /tg_backup_requires_stopped_confirmation/);
+  const base = dataDirectory('123'); await fs.mkdir(base, { recursive: true, mode: 0o700 }); await fs.writeFile(path.join(base, 'runtime.lock'), '{}');
+  await assert.rejects(backupTelegram(file, output, { serviceStopped: true }), /tg_account_locked/);
+  await fs.unlink(path.join(base, 'runtime.lock')); await fs.symlink(file, path.join(base, 'unsafe-link'));
+  await assert.rejects(backupTelegram(file, output, { serviceStopped: true }), /tg_backup_unsafe_entry/);
+  await fs.unlink(path.join(base, 'unsafe-link')); await fs.writeFile(path.join(base, 'state.json'), '{}');
+  await backupTelegram(file, output, { serviceStopped: true }); assert.equal((await fs.stat(output)).mode & 0o777, 0o600);
+  const listing = await exec('tar', ['-tzf', output]); assert.match(listing.stdout, /config\/config.json/); assert.match(listing.stdout, /state\/state.json/); assert.doesNotMatch(listing.stdout, /runtime.lock/);
+  await assert.rejects(backupTelegram(file, output, { serviceStopped: true }), /tg_backup_exists/);
+});
