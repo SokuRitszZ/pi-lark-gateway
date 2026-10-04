@@ -1,17 +1,18 @@
 import path from 'node:path';
 import { defaultConfigPath as larkConfig } from '../config/index.js';
 import { defaultConfigPath as qqConfig } from '../qq-gateway/config.js';
-import { servicePaths, startService, serviceStatus, serviceRequest, readServiceLog } from '../runtime/service.js';
+import { servicePaths, startService, restartService, serviceStatus, serviceRequest, readServiceLog } from '../runtime/service.js';
 
 export async function runServicePlan(plan) {
   const [command, ...originalArgs] = plan.args;
   const foreground = command === 'start' && originalArgs.includes('--foreground');
   const args = foreground ? originalArgs.filter(a => a !== '--foreground') : originalArgs;
-  if (!['start', 'status', 'stop', 'logs'].includes(command) || args.some(a => ['--help', '-h'].includes(a))) return false;
+  if (plan.platform === 'lark' && command === 'restart') return false; // Existing idle/deferred restart protocol.
+  if (!['start', 'restart', 'status', 'stop', 'logs'].includes(command) || args.some(a => ['--help', '-h'].includes(a))) return false;
   try {
     let configPath = plan.platform === 'qq' ? qqConfig() : process.env.PI_LARK_CONFIG || larkConfig();
     if (args.length) {
-      if (args.length !== 2 || args[0] !== '--config' || !args[1]) throw new Error('用法：start|status|stop|logs [--config 路径]；前台调试用 start --foreground');
+      if (args.length !== 2 || args[0] !== '--config' || !args[1]) throw new Error('用法：start|restart|status|stop|logs [--config 路径]；前台调试用 start --foreground');
       configPath = args[1];
     }
     configPath = path.resolve(configPath);
@@ -22,9 +23,9 @@ export async function runServicePlan(plan) {
     }
     const paths = servicePaths(plan.platform, configPath);
     if (command === 'logs') console.log(await readServiceLog(paths));
-    else if (command === 'start') {
-      const result = await startService({ platform: plan.platform, configPath, paths });
-      console.log(`${result.alreadyRunning ? '已有后台服务' : '后台启动完成'}：${result.status} · PID ${result.pid}\n日志：${paths.log}\n管理：pi-gateway ${plan.platform} status / stop / logs（自定义配置沿用 --config）`);
+    else if (command === 'start' || command === 'restart') {
+      const result = await (command === 'restart' ? restartService : startService)({ platform: plan.platform, configPath, paths });
+      console.log(`${result.alreadyRunning ? '已有后台服务' : command === 'restart' ? '后台重启完成' : '后台启动完成'}：${result.status} · PID ${result.pid}\n日志：${paths.log}\n管理：pi-gateway ${plan.platform} status / restart / stop / logs（自定义配置沿用 --config）`);
     } else {
       const status = await serviceStatus(paths);
       if (command === 'stop' && status.status !== 'stopped') {

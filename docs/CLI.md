@@ -47,10 +47,13 @@ pi-gateway qq start
 pi-gateway qq status
 pi-gateway qq logs
 pi-gateway qq stop
+pi-gateway qq restart              # 等旧后台退出，再等待新实例就绪
 pi-gateway qq start --foreground  # 前台调试；Ctrl+C 退出
 ```
 
-Lark 使用相同命令。自定义配置的启动、状态、日志和停止都要沿用同一个 `--config 路径`。
+Lark 的 start/status/stop/logs 使用相同管理方式；`pi-gateway lark restart` 继续沿用已有的空闲后延迟重启协议，不立即停止当前回复。
+
+QQ restart 仅管理本 CLI 的后台服务：先请求安全停止，最多等待 20 秒；未退出时不会启动第二个实例，也不会删除账号锁。服务已停止时相当于 start，不接管前台或扩展实例；重启可能中断正在生成的 QQ 回复，请在空闲时使用。自定义配置的启动、状态、日志和停止都要沿用同一个 `--config 路径`。
 旧 `pi-qq-gateway start` / `pi-lark-gateway start` 仍保持前台行为。
 
 - 仅管理本 CLI 启动的后台服务；不自动接管或停止现有前台、Pi 扩展或 launchd 实例。

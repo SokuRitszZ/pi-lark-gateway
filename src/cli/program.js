@@ -16,7 +16,7 @@ export function buildProgram({ version, ui, run }) {
   };
   program.action(() => dispatch([]));
   for (const platform of ['lark', 'qq']) {
-    program.command(platform).description(platform === 'lark' ? '飞书：setup / start / status / stop / logs / doctor / backup / restart' : 'QQ：setup / authorize / start / status / stop / logs / check / discover / init')
+    program.command(platform).description(platform === 'lark' ? '飞书：setup / start / status / stop / logs / doctor / backup / restart' : 'QQ：setup / authorize / start / restart / status / stop / logs / check / discover / init')
       .argument('[command]', '平台命令；省略则显示菜单').argument('[args...]', '传递给平台命令的参数')
       .allowUnknownOption().passThroughOptions()
       .action((command, args) => dispatch([platform, ...(command ? [command] : []), ...args]));

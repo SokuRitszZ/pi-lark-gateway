@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { servicePaths, startService, serviceStatus, serviceRequest, readServiceLog } from '../src/runtime/service.js';
+import { servicePaths, startService, restartService, serviceStatus, serviceRequest, readServiceLog } from '../src/runtime/service.js';
 
 async function fixture(t, runtimeSource) {
   const root = await fs.mkdtemp('/tmp/pi-svc-');
@@ -45,6 +45,20 @@ test('startup timeout requests cleanup rather than claiming readiness', async t 
   await assert.rejects(startService({ ...options, timeoutMs: 250 }), /service_start_timeout/);
   for (let i = 0; i < 100 && (await serviceStatus(options.paths)).status !== 'stopped'; i++) await delay(25);
   assert.equal((await serviceStatus(options.paths)).status, 'stopped');
+});
+test('restart waits for old worker exit and starts a new ready worker', async t => {
+  const options = await fixture(t, `process.send({type:'gateway_ready'}); process.on('SIGTERM',()=>process.exit(0)); setInterval(()=>{},1000);`);
+  const old = await startService(options);
+  const next = await restartService(options);
+  assert.equal(next.status, 'running'); assert.notEqual(next.pid, old.pid);
+});
+test('restart stop timeout never launches a replacement', async () => {
+  let stop = false;
+  await assert.rejects(restartService({ platform: 'qq', configPath: '/tmp/example' }, {
+    status: async () => ({ status: 'running', pid: 123 }), request: async () => { stop = true; },
+    start: () => assert.fail('must not overlap old process'), stopTimeoutMs: 0,
+  }), /service_stop_timeout/);
+  assert.equal(stop, true);
 });
 test('service control is scoped to platform and configuration path, not saved PIDs', () => {
   assert.notEqual(servicePaths('qq', '/tmp/a').socket, servicePaths('qq', '/tmp/b').socket);

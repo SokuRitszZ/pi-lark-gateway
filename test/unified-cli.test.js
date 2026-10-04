@@ -10,6 +10,8 @@ test('interactive menu selects platform and setup, or doctor', async () => {
   assert.deepEqual((await resolveCommand([], ask(['2', '']))).args, ['setup']);
   assert.deepEqual((await resolveCommand([], ask(['1', '3']))).args, ['doctor']);
   assert.deepEqual((await resolveCommand(['setup'], ask(['qq']))).args, ['setup']);
-  await assert.rejects(resolveCommand(['qq', 'restart'], ask([])), /invalid_command/);
+  assert.deepEqual((await resolveCommand(['qq', 'restart', '--config', '/tmp/custom.json'], ask([]))).args, ['restart', '--config', '/tmp/custom.json']);
+  assert.deepEqual((await resolveCommand([], ask(['qq', '8']))).args, ['restart']);
+  await assert.rejects(resolveCommand(['qq', 'unknown'], ask([])), /invalid_command/);
   await assert.rejects(resolveCommand([], ask(['bad'])), /invalid_platform/);
 });

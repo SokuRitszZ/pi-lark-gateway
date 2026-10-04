@@ -4,6 +4,7 @@ import os from 'node:os';
 import net from 'node:net';
 import { createHash } from 'node:crypto';
 import { fork } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
 export function servicePaths(platform, configPath, root = path.join(os.homedir(), '.local/share/pi-gateway/services')) {
@@ -57,6 +58,24 @@ export async function startService({ platform, configPath, paths = servicePaths(
       if (message?.type === 'failed') finish(new Error(message.diagnostic || 'service_start_failed'));
     });
   });
+}
+export async function restartService(options, { status = serviceStatus, request = serviceRequest, start = startService,
+  wait = delay, stopTimeoutMs = 20000 } = {}) {
+  const paths = options.paths || servicePaths(options.platform, options.configPath);
+  const previous = await status(paths);
+  if (previous.status !== 'stopped') {
+    await request(paths.socket, 'stop');
+    const deadline = Date.now() + stopTimeoutMs;
+    while (true) {
+      const current = await status(paths);
+      if (current.status === 'stopped') break;
+      if (previous.pid && current.pid && previous.pid !== current.pid) throw new Error('service_changed_during_restart: check status before retrying');
+      if (Date.now() >= deadline) throw new Error('service_stop_timeout: old instance has not stopped; no new instance started');
+      await wait(200);
+    }
+  }
+  // startService still enforces readiness, stale-socket and account-lock checks.
+  return start({ ...options, paths });
 }
 export async function readServiceLog(paths) {
   let file;

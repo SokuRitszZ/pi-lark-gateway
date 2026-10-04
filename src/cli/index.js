@@ -22,11 +22,12 @@ export async function resolveCommand(argv, ask, select) {
       { value: '5', label: '后台状态', hint: '仅本 CLI 管理的服务' },
       { value: '6', label: '停止后台服务', hint: '安全关闭连接和会话' },
       { value: '7', label: '查看后台日志', hint: '最近 50 条安全诊断码' },
+      { value: '8', label: '重启网关', hint: platform === 'qq' ? '安全停止旧后台，再启动' : '登记任务，空闲后延迟重启' },
     ] }) : (await ask('选择操作：1 接入向导  2 启动  3 本地检查 [1]：')).trim();
-    command = ({ '': 'setup', '1': 'setup', '2': 'start', '3': platform === 'lark' ? 'doctor' : 'check', '4': platform === 'qq' ? 'authorize' : undefined, '5': 'status', '6': 'stop', '7': 'logs' })[choice];
+    command = ({ '': 'setup', '1': 'setup', '2': 'start', '3': platform === 'lark' ? 'doctor' : 'check', '4': platform === 'qq' ? 'authorize' : undefined, '5': 'status', '6': 'stop', '7': 'logs', '8': 'restart' })[choice];
   }
   const allowed = platform === 'lark' ? ['setup', 'start', 'doctor', 'backup', 'restart', '--help', '-h'] : ['setup', 'authorize', 'start', 'check', 'discover', 'init', '--help', '-h'];
-  allowed.push('status', 'stop', 'logs');
+  allowed.push('status', 'stop', 'logs', 'restart');
   if (!allowed.includes(command)) throw new Error('invalid_command');
   return { platform, script: `bin/pi-${platform === 'lark' ? 'lark' : 'qq'}-gateway.js`, args: [command, ...args] };
 }
