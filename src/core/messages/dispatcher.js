@@ -1,7 +1,7 @@
 import { failureDiagnostic } from '../../errors/index.js';
 const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 // Accepts normalized messages only. Platform parsing and presentation are injected.
-export function createMessageDispatcher({ answer, reply, beginResponse, command = () => undefined, react = async () => {}, removeReaction = async () => {}, log = () => {}, getTools = () => 'none', sleep = defaultSleep, mediaErrorText = () => undefined, unsupportedText = '未找到可处理的文字或附件。' }) {
+export function createMessageDispatcher({ answer, reply, beginResponse, onSettled = () => {}, command = () => undefined, react = async () => {}, removeReaction = async () => {}, log = () => {}, getTools = () => 'none', sleep = defaultSleep, mediaErrorText = () => undefined, unsupportedText = '未找到可处理的文字或附件。' }) {
   const seen = new Map();
   const queues = new Map();
   let closed = false;
@@ -54,6 +54,7 @@ export function createMessageDispatcher({ answer, reply, beginResponse, command 
             try { await removeReaction(m, reactionId); }
             catch { log('reaction_remove_failed'); }
           }
+          onSettled(m);
         }
       });
       queues.set(m.key, job);
