@@ -21,6 +21,9 @@ test('configuration fails closed and init never overwrites an existing file', as
   const { root, config } = await fixture(t);
   assert.throws(() => validateConfig({ ...config, access: { c2cUsers: [], groups: {} } }), /empty_allowlist/);
   assert.throws(() => validateConfig({ ...config, tools: 'anything' }), /tools/);
+  assert.throws(() => validateConfig({ ...config, replyFormat: 'card' }), /replyFormat/);
+  assert.doesNotThrow(() => validateConfig({ ...config, replyFormat: 'text' }));
+  assert.doesNotThrow(() => validateConfig({ ...config, replyFormat: undefined }));
   assert.throws(() => validateConfig({ ...config, webhook: { ...config.webhook, host: '0.0.0.0' } }), /webhook/);
   const file = path.join(root, 'init.json'); await initConfig(file);
   await assert.rejects(initConfig(file), { code: 'EEXIST' });

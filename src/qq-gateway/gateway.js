@@ -38,8 +38,8 @@ export async function startGateway({ configPath, discover = false, log = () => {
     if (!discover) agent = await createAgentImpl(base, config.model, {
       log, getAnswerTimeoutMs: () => config.answerTimeoutMs,
       promptPolicy: {
-        full: '你通过 QQ 与用户对话。当前只支持文本回复，附件尚未解析，不能发送文件或图片。工具运行于宿主机，不是沙箱。群回复所有成员可见，不公开凭据和私人数据。破坏性操作、对外发送前确认。基于工具结果报告操作。',
-        restricted: '你是通过 QQ 对话的助手。用用户语言简洁回答，没有工具，不要声称已操作宿主机或解析附件。群回复所有成员可见。',
+        full: '你通过 QQ 与用户对话。当前支持一次性最终文本回复（可使用 Markdown 排版，不支持交互按钮或原地流式更新）；附件尚未解析，不能发送文件或图片。工具运行于宿主机，不是沙箱。群回复所有成员可见，不公开凭据和私人数据。破坏性操作、对外发送前确认。基于工具结果报告操作。',
+        restricted: '你是通过 QQ 对话的助手。用用户语言简洁回答，可使用简洁 Markdown 排版；不支持交互按钮或原地流式更新。没有工具，不要声称已操作宿主机或解析附件。群回复所有成员可见。',
       },
     });
     transport = createTransportImpl(config, secret, { log, onFailure: () => { log('qq_transport_stopped'); void close().catch(() => log('qq_close_failed')); } });

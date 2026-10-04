@@ -29,7 +29,11 @@ export function createTransport(config, secret, { log = () => {}, onFailure = ()
       try { await readiness; } catch (error) { closed = true; server.close(); bot.stop(); throw error; }
       finally { clearTimeout(timer); }
     },
-    sendText(target, text) { return bot.sendText(target, text); },
+    sendText(target, text) {
+      // Explicit format; keep a plain-text escape hatch for accounts with restrictions.
+      // Never retry a rejected/ambiguous send as text: it could duplicate a reply.
+      return config.replyFormat === 'text' ? bot.sendText(target, text) : bot.sendMarkdown(target, text);
+    },
     async close() { if (!closed) { closed = true; server.close(); bot.stop(); } },
   };
 }

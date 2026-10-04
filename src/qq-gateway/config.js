@@ -7,7 +7,7 @@ export const exampleConfig = {
   appId: 'REPLACE_APP_ID', transport: 'webhook',
   webhook: { host: '127.0.0.1', port: 8080, path: '/qq/callback' },
   model: { provider: 'REPLACE_PROVIDER', id: 'REPLACE_MODEL_ID' },
-  tools: 'none', answerTimeoutMs: 90000,
+  tools: 'none', replyFormat: 'markdown', answerTimeoutMs: 90000,
   access: { c2cUsers: [], groups: {} },
 };
 const validId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -16,6 +16,7 @@ export function validateConfig(value, { discover = false } = {}) {
   if (!value || !validId(value.appId) || value.appId.startsWith('REPLACE')) fail('appId');
   if (!['webhook', 'websocket'].includes(value.transport)) fail('transport');
   if (!['none', 'all'].includes(value.tools)) fail('tools');
+  if (value.replyFormat !== undefined && !['markdown', 'text'].includes(value.replyFormat)) fail('replyFormat');
   if (!Number.isSafeInteger(value.answerTimeoutMs) || value.answerTimeoutMs < 1000 || value.answerTimeoutMs > 120000) fail('answerTimeoutMs');
   if (!discover && (!value.model || typeof value.model.provider !== 'string' || !value.model.provider || typeof value.model.id !== 'string' || !value.model.id || Object.values(value.model).some(v => String(v).startsWith('REPLACE')))) fail('model');
   const access = value.access;

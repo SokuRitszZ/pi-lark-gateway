@@ -5,6 +5,14 @@ QQ 代码直接位于 **pi-lark-gateway 的 release/1.1.0**，不是另一个仓
 `src/qq-gateway/` 负责配置、组合与生命周期，共用 `src/core/`。
 Lark 的配置、命令及会话路径不变，两者可以使用不同账号同时运行。
 
+## Markdown 回复与工具
+
+默认通过官方 SDK 的 `sendMarkdown` 发送最终回复（`msg_type=2`），适用于 C2C 和群 @，保留原生回复目标及消息 ID。可使用简洁 Markdown 排版；不是飞书式可更新卡片，暂不提供按钮、流式编辑或工具进度卡片。
+
+配置 `"replyFormat": "text"` 可切回纯文本；省略该字段默认 Markdown。为避免网络结果不确定时重复发送，Markdown 失败不会自动补发纯文本；遇到账号能力限制时请手动改格式并重启。
+
+工具与格式独立：`"tools": "all"` 允许所有已在白名单中的私聊/群成员使用宿主机 Pi 工具、扩展与 Skills（不是沙箱）；默认仍为 `none`。修改后安全重启 QQ 生效。不要把全工具能力开放给不可信用户。
+
 ## 启动后返回终端与查看失败原因
 
 统一入口 `pi-gateway qq start` 在 macOS / Linux 默认后台运行；使用 `status` 看状态、`logs` 看安全诊断码、`stop` 请求安全退出。调试时使用 `pi-gateway qq start --foreground`。自定义配置的这些命令均沿用同一个 `--config`。
@@ -61,7 +69,7 @@ QQ 平台机器人创建、测试范围、权限及回调设置仍需在后台�
 
 - QQ 消息列表私聊（C2C）和群内 @；不支持频道 / 频道私信。
 - Webhook（默认，验签）和 WebSocket（需平台为你的账号开放）。
-- 文本输入、单条最终回复；3500 UTF-8 字节以上明确截断，不做多条自动补发。
+- 文本输入、单条最终 Markdown 回复；3500 UTF-8 字节以上明确截断，不做多条自动补发。
 - 用户白名单；群必须同时匹配 group_openid 与 member_openid。
 - C2C 按用户隔离，群按“群 + 成员”隔离上下文。群回复仍对所有群成员可见。
 - `PIGateway.QQ` 当前轮可信身份，保留原生 ID；不与 Lark open_id 混用。
@@ -114,6 +122,7 @@ node bin/pi-qq-gateway.js init
   "webhook": { "host": "127.0.0.1", "port": 8080, "path": "/qq/callback" },
   "model": { "provider": "你的模型provider", "id": "你的模型ID" },
   "tools": "none",
+  "replyFormat": "markdown",
   "answerTimeoutMs": 90000,
   "access": { "c2cUsers": [], "groups": {} }
 }
