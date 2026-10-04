@@ -77,6 +77,22 @@ test('QQ production normalization reaches shared core with a trusted QQ identity
   await gateway.close();
 });
 
+test('QQ final-only response tolerates real agent progress events without UNKNOWN failures', async t => {
+  const { root, configPath } = await fixture(t); let receive;
+  const sent = [], logs = [];
+  const gateway = await startGateway({ configPath, dataRoot: root, env: { QQBOT_APP_SECRET: 'test-only' }, log: code => logs.push(code),
+    createAgentImpl: async () => ({ answer: async (_key, _text, onEvent) => {
+      onEvent({ type: 'agent_start' });
+      onEvent({ type: 'message_update', assistantMessageEvent: { type: 'text_delta', delta: 'ok' } });
+      onEvent({ type: 'agent_end', messages: [] });
+      return 'ok';
+    }, abort() {}, dispose: async () => {} }),
+    createTransportImpl: () => ({ onMessage: fn => { receive = fn; }, start: async () => {}, close: async () => {}, sendText: async (_target, text) => sent.push(text) }),
+  });
+  receive(raw('progress')); await tick(); await gateway.close();
+  assert.deepEqual(sent, ['ok']); assert.ok(!logs.includes('message_failed'));
+});
+
 test('failed transport startup disposes the agent and unlocks account', async t => {
   const { root, configPath } = await fixture(t); let disposed = 0;
   const options = { configPath, dataRoot: root, env: { QQBOT_APP_SECRET: 'test-only' },

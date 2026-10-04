@@ -31,7 +31,7 @@ export function createMessageDispatcher({ answer, reply, beginResponse, command 
               await sleep(m.debugSleepMs);
               output = `debug sleep ${m.debugSleepMs}ms done`;
             } else {
-              output = m.text || m.attachments?.length ? await answer(m.key, m.text, event => progress?.event(event), { message: m, appendImage: progress?.appendImage, summarizeIntent: progress?.summarizeIntent === true, tools: getTools(m), onSession: progress?.onSession }) : unsupportedText;
+              output = m.text || m.attachments?.length ? await answer(m.key, m.text, event => progress?.event?.(event), { message: m, appendImage: progress?.appendImage, summarizeIntent: progress?.summarizeIntent === true, tools: getTools(m), onSession: progress?.onSession }) : unsupportedText;
             }
           }
           if (progress) await progress.finish(output);
