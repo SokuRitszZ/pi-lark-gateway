@@ -6,6 +6,7 @@ import { startGateway, defaultConfigPath, dataDirectory, loadConfig, loadCredent
 import { configureEnvironmentProxy } from '../src/runtime/network.js';
 import { requestRestart, RESTART_EXIT_CODE } from '../src/restart/index.js';
 configureEnvironmentProxy();
+process.umask(0o077);
 const args = process.argv.slice(2), command = args.shift();
 const help = '用法：pi-gateway tg setup|authorize|init|check|discover|start|restart|status|stop|logs|webhook-register|backup [--config 路径]\nbackup 还需 --service-stopped --output /安全路径/backup.tar.gz\n统一 start 默认后台；旧 pi-tg-gateway start 为前台。Token 使用向导私有文件或 TELEGRAM_BOT_TOKEN。';
 const send = value => { if (process.connected) process.send(value, () => {}); };
@@ -16,7 +17,7 @@ async function main() {
     const { values } = parseArgs({ args, options: { config: { type: 'string' }, output: { type: 'string' }, 'service-stopped': { type: 'boolean' } } });
     const { backupTelegram } = await import('../src/tg-gateway/index.js');
     await backupTelegram(values.config || defaultConfigPath(), values.output, { serviceStopped: values['service-stopped'] === true });
-    console.log('本地私有备份已完成，包含应用凭据与会话；不要发到聊天或公开上传。'); return;
+    console.log('本地私有备份已完成，包含已保存的应用凭据与会话；不要发到聊天或公开上传。'); return;
   }
   let configPath = defaultConfigPath();
   if (args.length) { if (args.length !== 2 || args[0] !== '--config') throw new Error('invalid_config:arguments'); configPath = path.resolve(args[1]); }
@@ -42,10 +43,13 @@ async function main() {
     });
     if (stopping) await gateway.close(); else send({ type: 'gateway_ready' });
     await gateway.done;
-    if (restartRequested) process.exitCode = RESTART_EXIT_CODE;
+    await gateway.close(); // Observe cleanup failures before reporting a successful exit.
+    // This standalone child owns its process; SDK extension timers must not prevent an idle restart.
+    process.exit(restartRequested ? RESTART_EXIT_CODE : stopping ? 0 : 1);
   } finally { process.off('SIGINT', stop); process.off('SIGTERM', stop); }
 }
 main().catch(async error => {
   if (error?.code === 'CLI_CANCELLED') { const { createUI } = await import('../src/cli/index.js'); createUI().cancel(); process.exitCode = 130; }
   else { const diagnostic = publicError(error); console.error(diagnostic); send({ type: 'gateway_failed', diagnostic }); process.exitCode = 1; }
+  if (['start', 'discover'].includes(command)) setTimeout(() => process.exit(1), 1000).unref();
 });
