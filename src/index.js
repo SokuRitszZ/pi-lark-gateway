@@ -1,9 +1,9 @@
-import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 import { startGateway } from './gateway/index.js';
 import { keepAwakeOnPower } from './runtime/index.js';
+import { configureEnvironmentProxy } from './runtime/network.js';
 import { RESTART_EXIT_CODE } from './restart/index.js';
 
-setGlobalDispatcher(new EnvHttpProxyAgent());
+configureEnvironmentProxy();
 process.umask(0o077);
 const log = event => {
   console.log(new Date().toISOString(), event);

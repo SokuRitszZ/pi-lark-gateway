@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import { startGateway, defaultConfigPath, initConfig, loadConfig, loadCredentials, publicError } from '../src/qq-gateway/index.js';
 
+import { configureEnvironmentProxy } from '../src/runtime/network.js';
+
+configureEnvironmentProxy();
 const args = process.argv.slice(2), command = args.shift();
 const help = 'Usage: pi-qq-gateway setup|authorize|init|check|discover|start [--config /absolute/config.json]\nSecret: saved by setup (0600 file), or QQBOT_APP_SECRET environment override. Pi extension: /qq start|stop|status.';
 async function main() {
