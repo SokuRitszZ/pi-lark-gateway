@@ -9,6 +9,7 @@ import { formatText, formatPages } from './format.js';
 import { startWebhook } from './webhook.js';
 import { messageKey } from './messages.js';
 import { createPacer } from './pace.js';
+import { frameCard, approvalTitle, cardDivider } from './card.js';
 
 export function createTransport(config, secret, { log = () => {}, onFailure = () => {}, BotImpl = Bot, fetchImpl = fetch, paceOptions } = {}) {
   const agents = new Map(), pacer = createPacer(paceOptions), controller = new AbortController();
@@ -61,12 +62,9 @@ export function createTransport(config, secret, { log = () => {}, onFailure = ()
         link_preview_options: { is_disabled: true }, ...(keyboard ? { reply_markup: { inline_keyboard: keyboard } } : {}) }, controller.signal)));
     },
     editText(chatId, messageId, text, keyboard = []) { return api.editFormatted(chatId, messageId, formatText(text.length > 3500 ? `…前文略\n${text.slice(-3500).replace(/^[\uDC00-\uDFFF]/, '')}` : text), keyboard); },
-    async finalize(target, messageId, text) {
-      const pages = formatPages(text);
-      if (pages.length > 1) pages.forEach((page, index) => {
-        const prefix = `（${index + 1}/${pages.length}）\n`;
-        page.text = prefix + page.text; page.entities = page.entities.map(e => ({ ...e, offset: e.offset + prefix.length }));
-      });
+    async finalize(target, messageId, text, { state = 'complete' } = {}) {
+      const body = formatPages(text);
+      const pages = body.map((page, index) => frameCard(page, state, index, body.length));
       await api.editFormatted(target.chatId, messageId, pages[0]);
       for (const page of pages.slice(1)) await api.sendFormatted(target, page);
     },
@@ -123,7 +121,7 @@ export function createTransport(config, secret, { log = () => {}, onFailure = ()
   };
   return api;
 }
-function approvalText(r, status = 'pending') { return `${r.debugLabel ? '[模拟测试] ' + r.debugLabel + '\n' : ''}访问申请 · ${status}\n用户：${r.user}\n会话：${r.chat}\n类型：${r.chatType}${r.chatName ? '\n会话名（仅资料）：' + JSON.stringify(r.chatName) : ''}\n批准只授予会话访问权，不自动开启工具。`; }
+function approvalText(r, status = 'pending') { return `${approvalTitle(status)}\n${cardDivider}\n${r.debugLabel ? '[模拟测试] ' + r.debugLabel + '\n' : ''}\n申请信息\n用户：${r.user}\n会话：${r.chat}\n类型：${r.chatType}${r.chatName ? '\n会话名（仅资料）：' + JSON.stringify(r.chatName) : ''}\n批准只授予会话访问权，不自动开启工具。`; }
 function approvalButtons(r, status) {
   const choices = status === 'pending' ? [['批准', 'approved'], ['拒绝', 'denied'], ['封禁', 'blocked']]
     : status === 'approved' ? [['撤销', 'revoked'], ['封禁', 'blocked']]

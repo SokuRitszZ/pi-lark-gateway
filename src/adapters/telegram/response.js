@@ -1,12 +1,13 @@
 import { createTimeline } from '../../core/progress/index.js';
 import { messageKey } from './messages.js';
+import { progressCard, responseState } from './card.js';
 // At most one progress request in flight; replace pending snapshots instead of queueing them.
 export function createResponses({ transport, controls, active, byMessage, log, interval = 1200 }) {
   return async message => {
     const handle = controls.create(message), timeline = createTimeline();
     const keyboard = [[{ text: '停止', callback_data: `s:${handle.id}` }]];
     let sent;
-    try { sent = await transport.sendText(message.target, '⏳ 正在处理…', keyboard); }
+    try { sent = await transport.sendText(message.target, progressCard(), keyboard); }
     catch (error) { handle.close(); throw error; }
     const cardId = messageKey(message.chatId, sent.message_id);
     handle.attach(cardId);
@@ -17,12 +18,18 @@ export function createResponses({ transport, controls, active, byMessage, log, i
       if (closed || busy || timer || !dirty) return;
       timer = setTimeout(() => {
         timer = undefined; dirty = false; busy = true;
-        inFlight = Promise.resolve().then(() => transport.editText(message.chatId, sent.message_id, timeline.render() || '正在思考…', keyboard))
+        inFlight = Promise.resolve().then(() => transport.editText(message.chatId, sent.message_id, progressCard(timeline.render()), keyboard))
           .catch(() => log('tg_progress_failed')).finally(() => { busy = false; schedule(); });
       }, interval);
     };
     return {
-      event(event) { if (!closed && timeline.event(event)) { dirty = true; schedule(); } },
+      event(event) {
+        // Only names/statuses for tools, never operation arguments or raw results.
+        const visible = event.type === 'tool_execution_start'
+          ? { type: event.type, toolCallId: event.toolCallId, toolName: event.toolName }
+          : event;
+        if (!closed && timeline.event(visible)) { dirty = true; schedule(); }
+      },
       onSession(session) {
         handle.bind(session);
         if (session) active.set(message.key, run);
@@ -33,7 +40,7 @@ export function createResponses({ transport, controls, active, byMessage, log, i
         final = true; closed = true; clearTimeout(timer);
         await inFlight;
         // Known first message plus bounded continuation pages. Never blindly resend after failure.
-        await transport.finalize(message.target, sent.message_id, timeline.finish(text, options));
+        await transport.finalize(message.target, sent.message_id, text, { state: responseState(text, options, handle.stopped) });
       },
       async stop() {
         closed = true; clearTimeout(timer); await inFlight; handle.close();

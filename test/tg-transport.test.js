@@ -34,6 +34,8 @@ test('Telegram uses native reply parameters, rich entities, stable edits and bou
     assert.equal(send.args[2].message_thread_id, 4); assert.equal(send.args[2].entities[0].type, 'bold');
     await h.transport.finalize(target, 44, 'x'.repeat(8000) + 'END');
     const edit = h.calls.find(c => c.name === 'editMessageText'); assert.equal(edit.args[1], 44);
+    assert.match(edit.args[2], /^✅ 回复完成（1\/3）/);
+    assert.ok(h.calls.filter(c => c.name === 'sendMessage').slice(1).every(c => /^✅ 回复完成（/.test(c.args[1]) && c.args[1].length < 4096));
     assert.deepEqual(edit.args[3].reply_markup.inline_keyboard, []);
     assert.ok(h.calls.filter(c => c.name === 'sendMessage').at(-1).args[1].endsWith('END'));
   } finally { await h.transport.close(); }

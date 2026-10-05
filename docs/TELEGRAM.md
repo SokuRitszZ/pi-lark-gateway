@@ -32,7 +32,7 @@ pi-gateway tg logs
 | Conversation isolation | Bot + chat + forum topic + sender; members never share a model session |
 | Quoted replies | `reply_parameters`, including forum topic routing |
 | Processing reactions | Attempts 👀, removes it at cleanup; unavailable/disallowed reactions do not block answering |
-| Streaming and tool timeline | Stable placeholder edited in place; coalesced assistant text and sanitized operation previews, never reasoning/raw tool results |
+| Streaming and tool timeline | Stable placeholder edited in place; coalesced assistant text and tool names/statuses, never reasoning, tool arguments or raw tool results |
 | Rich text and long answers | Telegram entities rather than injected HTML; bounded numbered continuation messages |
 | Stop / steer | Live Stop button, `/stop`, `/steer instruction`; reply to a specific bot response to target it, including authorized admin control |
 | Attachments | Download to the session inbox, supported image vision, session-scoped `gateway_send_file` |
@@ -84,6 +84,13 @@ The IDs above are examples. Credentials files are mode **0600 plaintext**, not e
 - Default Telegram privacy mode does **not** guarantee delivery of ordinary `@bot` text. Prefer `/ask@BotUsername` or replies to the bot. Broader group visibility requires deliberate BotFather/privacy/admin configuration.
 
 ## Presentation, rate limits and media
+
+Telegram replies use text cards: a bold status title, a short `────────────` divider, then a named content section. Processing uses **⏳ 正在处理 / 执行进度**, successful response completion uses **✅ 回复完成 / 结果**, errors use **⚠️ 本次执行未完成 / 状态说明**, and cancellation uses **⏹ 当前回复已停止 / 状态说明**. Approvals use **🔐 等待访问授权** and explicit updated decision titles. This is message formatting, not CardKit or a Mini App.
+
+- The working card retains its Stop button and updates the same message. Long progress keeps the latest bounded body without losing its title.
+- Final cards replace the progress display with the authoritative answer rather than appending the old tool transcript. Every continuation page repeats the status title and page number, preserving rich-text entity offsets and Telegram length limits.
+- A completed response does not mean the underlying task/tests succeeded. The adapter does not fabricate verification, result or next-step claims; additional sections appear only in the actual answer. Short control acknowledgements remain lightweight messages/toasts.
+- Existing buttons and permissions are unchanged. This layout has offline tests, not live Telegram client acceptance.
 
 - At most one progress edit is pending per response; newer progress replaces older snapshots. Per-chat pacing spaces text sends/edits by at least 1.1s in private chats and 3.1s in groups. Telegram can impose additional limits: explicit short `429 retry_after` responses get one bounded retry; unknown send failures are not blindly resent.
 - A final response edits its original placeholder, then sends at most **12 numbered pages**, approximately 3900 UTF-16 units per page. Excess output has an explicit truncation notice. An ambiguous failure can leave partial pages; the gateway does not replay the whole answer and create duplicates.
