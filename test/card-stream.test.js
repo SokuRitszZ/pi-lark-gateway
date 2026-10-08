@@ -45,8 +45,11 @@ test('Lark next steps update the same terminal CardKit entity after stream clean
   let shown = f.displayed('message-1'); assert.ok(JSON.stringify(shown).includes('最终结果'));
   const row = shown.body.elements.at(-1);
   assert.equal(row.tag, 'column_set'); assert.equal(row.columns.length, 4);
+  assert.equal(row.flex_mode, 'none'); assert.equal(row.horizontal_spacing, 'small');
+  assert.ok(JSON.stringify(shown).includes('只检查，不修改。'));
   row.columns.forEach((column, index) => {
-    assert.equal(column.width, 'weighted'); assert.equal(column.elements[0].tag, 'button');
+    assert.equal(column.width, 'auto'); assert.equal(column.weight, undefined);
+    assert.equal(column.elements[0].tag, 'button'); assert.equal(column.elements[0].text.content, String(index + 1));
     assert.equal(column.elements[0].behaviors[0].value.index, index);
   });
   await response.nextSteps({ ...view, selectedIndex: 0 }); shown = f.displayed('message-1');

@@ -33,7 +33,9 @@ for (const long of [false, true]) test(`Telegram next-step presentation preserve
     const binding = await h.transport.presentNextSteps(target, snapshot, view);
     const shown = h.calls.at(-1), text = shown.name === 'sendMessage' ? shown.args[1] : shown.args[2];
     const config = shown.args[shown.name === 'sendMessage' ? 2 : 3]; assert.equal(config.reply_markup.inline_keyboard.length, 1); assert.equal(config.reply_markup.inline_keyboard[0].length, 4);
-    config.reply_markup.inline_keyboard[0].forEach((button, index) => assert.equal(button.callback_data, `n:${view.id}:${index}`)); assert.ok(text.length < 4096);
+    config.reply_markup.inline_keyboard[0].forEach((button, index) => {
+      assert.equal(button.callback_data, `n:${view.id}:${index}`); assert.equal(button.text, String(index + 1));
+    }); assert.ok(text.length < 4096);
     for (const e of config.entities) assert.ok(e.offset + e.length <= text.length);
     if (!long) { assert.equal(binding, '7:44'); assert.match(text, /原始结果😀/); } else assert.notEqual(binding, '7:44');
     await h.transport.presentNextSteps(target, snapshot, { ...view, selectedIndex: 1 });
