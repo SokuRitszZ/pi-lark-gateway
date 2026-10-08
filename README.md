@@ -4,6 +4,8 @@
 
 `release/1.1.0` 新增同仓库 **QQ、Telegram 网关与 Pi 扩展入口**。共用 core，独立配置、白名单和会话目录；不改变下方 Lark 用法。Telegram 使用 grammY，已实现并通过离线测试，尚未用真实 token 验收。见 [QQ 接入指南](docs/QQ.md)、[Telegram 接入与功能对照](docs/TELEGRAM.md) 和 [分层架构](docs/ARCHITECTURE.md)。
 
+共享业务层现支持[下一步建议](docs/NEXT-STEPS.md)：成功回复后额外调用一次隔离 LLM，提供最多 4 个选项；选择后先在原卡片标记并移除按钮，再沿用上下文创建新回复。飞书卡片与 Telegram 已适配；普通文本和 QQ 暂不启用。额外分析消耗模型额度，尚未进行线上客户端验收。
+
 ### 统一入口
 
 使用 Commander + Clack：方向键单选、白名单多选、密码遮蔽、就地校验和连接进度。设计与键盘操作见 [CLI 交互设计](docs/CLI.md)。

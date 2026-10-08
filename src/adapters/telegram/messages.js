@@ -47,6 +47,8 @@ export function normalizeCallback(update) {
   if (!q || !m?.chat || typeof q.id !== 'string' || q.id.length > 512 || q.from?.is_bot || !id(q.from?.id) || q.from.id <= 0 || !id(m.message_id) || m.message_id <= 0 || !id(m.chat.id) || typeof q.data !== 'string' || q.data.length > 64) return null;
   const parts = q.data.split(':'), [kind, requestId, action] = parts;
   if (!/^[a-f0-9-]{36}$/.test(requestId || '')) return null;
+  if (kind === 'n' && parts.length === 3 && /^[0-3]$/.test(action)) return { id: q.id, actorId: String(q.from.id),
+    messageId: messageKey(m.chat.id, m.message_id), eventId: q.id, value: { kind: 'next_step', id: requestId, index: Number(action) } };
   if (kind === 's' && action === undefined) return { id: q.id, actorId: String(q.from.id), messageId: messageKey(m.chat.id, m.message_id), eventId: q.id,
     value: { kind: 'response_control', id: requestId, action: 'stop' } };
   if (kind === 'a' && parts.length === 3 && ['approved', 'denied', 'revoked', 'blocked', 'unblocked'].includes(action)) return { id: q.id, actorId: String(q.from.id),

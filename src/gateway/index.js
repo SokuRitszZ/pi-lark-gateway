@@ -12,6 +12,8 @@ import { createGatewayIdentityResolver, promptPolicy } from '../adapters/lark/id
 import { createUserProfiles, createConnection, createMetadata, createCards, createReplies, createReactions, createResources } from '../adapters/lark/sdk/index.js';
 import { createControls, canControlResponse } from '../core/controls/index.js';
 import { createRestartControl } from '../restart/index.js';
+import { createNextSteps } from '../core/next-steps/index.js';
+import { admitMessage, withGrant } from '../core/access/index.js';
 
 // Composition root only: concrete feature implementations live in their own directories.
 export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || defaultConfigPath(), log, onRestart } = {}) {
@@ -47,7 +49,17 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
   });
   const controls = createControls({ log, canControl: (message, user) => canControlResponse(message, user, getState(), approvals) });
   let restartControl, ready = false;
-  const handler = createMessageHandler({
+  let handler;
+  const nextSteps = createNextSteps({ suggest: agent.suggest, log,
+    canSelect: (message, user) => {
+      if (handler.isClosed() || !canControlResponse(message, user, getState(), approvals)) return false;
+      const state = getState(), effective = approvals.hasGrant(message.chatId, message.userId)
+        ? withGrant(state, message.chatId, message.userId, message.isGroup ? 'group' : 'p2p') : state;
+      return admitMessage({ ...message, mentioned: true }, effective);
+    },
+    dispatch: message => { if (handler.isClosed()) return false; handler.acceptMessage(message); return true; },
+  });
+  handler = createMessageHandler({ nextSteps,
     command: createRestartCommand({ getState,
       canRestart: (message, state) => canControlResponse(message, message.userId, state, approvals),
       schedule: () => { if (!restartControl) throw new Error('restart_unavailable'); return restartControl.schedule(); }, log,
@@ -66,11 +78,11 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
   });
   const route = createRouter({ getState, approvals, handler, threads, reply: replies.reply, log });
   try {
-    if (onRestart) restartControl = await createRestartControl({ base, isIdle: () => ready && handler.isIdle(), restart: onRestart, log });
-    await startIngress(connection, { route, controls, approvals });
+    if (onRestart) restartControl = await createRestartControl({ base, isIdle: () => ready && handler.isIdle() && nextSteps.isIdle(), restart: onRestart, log });
+    await startIngress(connection, { route, controls, approvals, nextSteps });
   } catch {
     settings.close(); agent.abort();
-    await Promise.allSettled([restartControl?.close(), connection.close(), handler.drain(), approvals.drain(), agent.dispose()]);
+    await Promise.allSettled([nextSteps.close(), restartControl?.close(), connection.close(), handler.drain(), approvals.drain(), agent.dispose()]);
     throw new Error('gateway_start_failed');
   }
   log('gateway_started_configured_access');
@@ -78,9 +90,10 @@ export async function startGateway({ configPath = process.env.PI_LARK_CONFIG || 
   return {
     async close() {
       // Close message admission synchronously before any shutdown await.
-      const drained = handler.drain();
+      const choices = nextSteps.close(), drained = handler.drain();
       settings.close(); agent.abort();
       await restartControl?.close();
+      await choices;
       await connection.close();
       await drained;
       await approvals.drain();

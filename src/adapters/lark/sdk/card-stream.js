@@ -111,6 +111,15 @@ export function createStreamingCards({ client, send, edit, log = () => {}, now =
         }
       } catch { await downgrade(entry, id, card); }
     },
+    finalEditor(id) {
+      // Retain only this terminal card's identity/sequence after stream cleanup.
+      const entry = entries.get(id);
+      return async card => {
+        if (!entry || !native) return edit(id, legacyCard(card));
+        try { await whole(entry, card, false); }
+        catch { await downgrade(entry, id, card); }
+      };
+    },
     async close() {
       if (closed) return;
       closed = true;

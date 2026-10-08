@@ -4,11 +4,12 @@ import { createSessionPool } from './sessions.js';
 import { generateAnswer } from './answer.js';
 import { summarizeIntent } from './title.js';
 import { createRunControl } from './run-control.js';
+import { generateSuggestions } from './suggestions.js';
 
 export { sessionDirectory } from './session-lifecycle.js';
 
 export async function createAgent(base, model, { getAnswerTimeoutMs = () => 0, log = () => {}, pool: injectedPool, createPool = createSessionPool, prepareInput, resolveIdentity = async message => message?.identity || {}, formatIdentity = identityHeader, promptPolicy, getCustomTools = () => [] } = {}) {
-  const turns = new AsyncLocalStorage();
+  const turns = new AsyncLocalStorage(), suggestionRuns = new Set();
   const pool = injectedPool || await createPool(base, model, { log, promptPolicy, getCustomTools: dir => getCustomTools(dir, () => turns.getStore()),
     getSenderHeader: () => turns.getStore()?.active ? turns.getStore().senderHeader : undefined });
   return {
@@ -43,7 +44,14 @@ export async function createAgent(base, model, { getAnswerTimeoutMs = () => 0, l
         }
       }));
     },
-    abort: pool.abort,
-    dispose: pool.dispose,
+    async suggest(question, answer) {
+      // Optional follow-up analysis must not create an unbounded second model queue.
+      if (suggestionRuns.size >= 4) return [];
+      const controller = new AbortController(); suggestionRuns.add(controller);
+      try { return await generateSuggestions(pool.modelRuntime, model, question, answer, base, controller.signal); }
+      finally { suggestionRuns.delete(controller); }
+    },
+    abort() { for (const controller of suggestionRuns) controller.abort(); return pool.abort(); },
+    dispose() { for (const controller of suggestionRuns) controller.abort(); return pool.dispose(); },
   };
 }

@@ -19,7 +19,8 @@ async function fixture(t, options = {}) {
     onUpdate(fn) { handler = fn; }, async start() {}, async close() {},
     async sendText(target, text, keyboard) { const message_id = sequence++; calls.push({ type: 'send', target, text, keyboard, message_id }); return { message_id }; },
     async editText(chatId, id, text) { calls.push({ type: 'edit', chatId, id, text }); },
-    async finalize(target, id, text) { calls.push({ type: 'final', target, id, text }); await options.finalize?.(); },
+    async finalize(target, id, text) { calls.push({ type: 'final', target, id, text }); await options.finalize?.(); return { id }; },
+    ...(options.suggest ? { async presentNextSteps(target, snapshot, view) { calls.push({ type: 'suggestions', view, id: snapshot.id }); return `${target.chatId}:${snapshot.id}`; } } : {}),
     async react(m) { return m; }, async removeReaction() {},
     async publishApproval(request) { requests.push(request); return '7:999'; }, async refreshApproval() {},
     async answerCallback(id, text) { calls.push({ type: 'callback', id, text }); },
@@ -28,12 +29,26 @@ async function fixture(t, options = {}) {
   const args = { configPath: file, dataRoot: dir, env: { TELEGRAM_BOT_TOKEN: '123:' + 'x'.repeat(30) }, log: code => logs.push(code),
     onRestart: options.onRestart, createTransportImpl: () => transport, createAgentImpl: async () => ({
       async answer(key, text, event, context) { answers.push({ key, text, context }); return options.answer ? options.answer(key, text, event, context) : 'done'; },
+      suggest: options.suggest,
       abort() { aborted++; options.abort?.(); }, async dispose() { disposed++; },
     }) };
   const gateway = await startGateway(args);
   t.after(async () => { await gateway.close(); await fs.rm(dir, { recursive: true, force: true }); });
   return { gateway, args, dir, file, config, calls, answers, logs, requests, emit: u => handler(u, bot), counts: () => ({ disposed, aborted }) };
 }
+test('Telegram next-step callbacks update the old response then start exactly one new same-session turn', async t => {
+  const h = await fixture(t, { suggest: async () => [{ title: '检查', detail: '检查但不修改。' }] });
+  h.emit(update(1)); await until(() => h.calls.some(c => c.type === 'suggestions'));
+  const view = h.calls.find(c => c.type === 'suggestions');
+  const click = (user, messageId) => ({ callback_query: { id: `choice-${user}-${messageId}`, from: { id: user }, message: { message_id: messageId, chat: { id: 7 } }, data: `n:${view.view.id}:0` } });
+  h.emit(click(8, view.id)); h.emit(click(7, view.id + 1)); await sleep(20); assert.equal(h.answers.length, 1);
+  h.emit(click(7, view.id)); h.emit(click(7, view.id)); await until(() => h.answers.length === 2);
+  assert.equal(h.answers[1].key, h.answers[0].key); assert.match(h.answers[1].text, /检查但不修改/);
+  assert.equal(h.answers[1].context.tools, 'none'); assert.equal(h.answers[1].context.message.identity.Telegram.sender.user_id, '7');
+  const selected = h.calls.findIndex(c => c.type === 'suggestions' && c.view.selectedIndex === 0);
+  const sends = h.calls.map((c, i) => c.type === 'send' ? i : -1).filter(i => i >= 0);
+  assert.equal(sends.length, 2); assert.ok(selected < sends[1]);
+});
 test('Telegram composition admits only authorized messages, deduplicates and defaults tools off', async t => {
   const h = await fixture(t);
   h.emit(update(1)); h.emit(update(1)); h.emit(update(2, 8));

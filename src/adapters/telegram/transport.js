@@ -10,6 +10,7 @@ import { startWebhook } from './webhook.js';
 import { messageKey } from './messages.js';
 import { createPacer } from './pace.js';
 import { frameCard, approvalTitle, cardDivider } from './card.js';
+import { nextStepsText } from '../../presentation/next-steps/index.js';
 
 export function createTransport(config, secret, { log = () => {}, onFailure = () => {}, BotImpl = Bot, fetchImpl = fetch, paceOptions } = {}) {
   const agents = new Map(), pacer = createPacer(paceOptions), controller = new AbortController();
@@ -66,7 +67,25 @@ export function createTransport(config, secret, { log = () => {}, onFailure = ()
       const body = formatPages(text);
       const pages = body.map((page, index) => frameCard(page, state, index, body.length));
       await api.editFormatted(target.chatId, messageId, pages[0]);
-      for (const page of pages.slice(1)) await api.sendFormatted(target, page);
+      let snapshot = { id: messageId, page: pages[0] };
+      for (const page of pages.slice(1)) { const sent = await api.sendFormatted(target, page); snapshot = { id: sent.message_id, page }; }
+      return snapshot;
+    },
+    async presentNextSteps(target, snapshot, view) {
+      if (!snapshot) throw new Error('next_steps_missing_snapshot');
+      const details = formatText(nextStepsText(view), 3500);
+      if (snapshot.standalone === undefined) snapshot.standalone = snapshot.page.text.length + details.text.length + 200 > 4000;
+      const prefix = snapshot.standalone ? '' : snapshot.page.text + '\n\n────────────\n';
+      const formatted = { text: prefix + details.text, entities: [ ...(snapshot.standalone ? [] : snapshot.page.entities),
+        ...details.entities.map(e => ({ ...e, offset: e.offset + prefix.length })) ] };
+      const keyboard = view.selectedIndex === undefined ? view.options.map((o, i) => [{ text: o.title, callback_data: `n:${view.id}:${i}` }]) : [];
+      if (!snapshot.suggestionId) {
+        if (view.selectedIndex !== undefined) throw new Error('next_steps_missing_message');
+        snapshot.suggestionId = snapshot.standalone ? (await api.sendFormatted(target, formatted, keyboard)).message_id : snapshot.id;
+        if (snapshot.standalone) return messageKey(target.chatId, snapshot.suggestionId);
+      }
+      await api.editFormatted(target.chatId, snapshot.suggestionId, formatted, keyboard);
+      return messageKey(target.chatId, snapshot.suggestionId);
     },
     async editFormatted(chatId, messageId, formatted, keyboard = []) {
       try { return await pacer.run(chatId, () => call(() => bot.api.editMessageText(chatId, Number(messageId), formatted.text, { entities: formatted.entities,

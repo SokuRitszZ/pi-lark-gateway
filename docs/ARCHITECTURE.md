@@ -93,7 +93,9 @@ coalesced edits, sanitized shared-core timeline data and up to 12 final pages.
 It maps forms to `/steer`, and card images to native photo/file messages. Reactions
 are best effort. Explicit API 429 failures can be retried within a bounded window;
 ambiguous sends are not replayed. A dispatcher `onSettled` hook releases adapter
-admission capacity only after final sends, response cleanup and reactions finish.
+admission capacity only after final sends, optional next-step analysis/presentation, response cleanup and reactions finish.
+
+`core/next-steps` owns optional post-reply suggestions, bounded records, actor/message authorization, one-time selection and follow-up dispatch. Its isolated tool-free model runner lives in `core/agent`. Adapters expose `GatewayResponse.nextSteps(view)` and normalize callbacks; they do not generate suggestions or decide what request to execute. A trusted `dispatchId` distinguishes a synthetic follow-up from the preserved native source ID. A terminal-card update must succeed before a new request is admitted. See [next-step behavior and capability limits](NEXT-STEPS.md).
 
 Core media validates current-turn authorization, active/cancel state, workspace
 and file paths; prepares safe local attachments and model image inputs; and

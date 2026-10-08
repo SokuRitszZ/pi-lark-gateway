@@ -24,6 +24,22 @@ function harness(options = {}) {
   });
   return { transport, calls, bot: () => instance };
 }
+for (const long of [false, true]) test(`Telegram next-step presentation preserves answer/entities, clears buttons and bounds overflow=${long}`, async () => {
+  const h = harness(), target = { chatId: '7', messageId: 1 };
+  try {
+    await h.transport.start();
+    const snapshot = await h.transport.finalize(target, 44, long ? 'x'.repeat(3800) : '**原始结果😀**');
+    const view = { id: 'a'.repeat(36), options: Array.from({ length: 4 }, (_, i) => ({ title: `选项${i}`, detail: '😀'.repeat(240) })) };
+    const binding = await h.transport.presentNextSteps(target, snapshot, view);
+    const shown = h.calls.at(-1), text = shown.name === 'sendMessage' ? shown.args[1] : shown.args[2];
+    const config = shown.args[shown.name === 'sendMessage' ? 2 : 3]; assert.equal(config.reply_markup.inline_keyboard.length, 4); assert.ok(text.length < 4096);
+    for (const e of config.entities) assert.ok(e.offset + e.length <= text.length);
+    if (!long) { assert.equal(binding, '7:44'); assert.match(text, /原始结果😀/); } else assert.notEqual(binding, '7:44');
+    await h.transport.presentNextSteps(target, snapshot, { ...view, selectedIndex: 1 });
+    const edited = h.calls.at(-1); assert.equal(edited.name, 'editMessageText'); assert.match(edited.args[2], /✅ 已选择：选项1/);
+    assert.deepEqual(edited.args[3].reply_markup.inline_keyboard, []); assert.ok(edited.args[2].length < 4096);
+  } finally { await h.transport.close(); }
+});
 test('Telegram uses native reply parameters, rich entities, stable edits and bounded final pages', async () => {
   const h = harness(), target = { chatId: '-1001', messageId: 9, threadId: 4 };
   try {

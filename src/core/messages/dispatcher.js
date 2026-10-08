@@ -1,7 +1,7 @@
 import { failureDiagnostic } from '../../errors/index.js';
 const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 // Accepts normalized messages only. Platform parsing and presentation are injected.
-export function createMessageDispatcher({ answer, reply, beginResponse, onSettled = () => {}, command = () => undefined, react = async () => {}, removeReaction = async () => {}, log = () => {}, getTools = () => 'none', sleep = defaultSleep, mediaErrorText = () => undefined, unsupportedText = '未找到可处理的文字或附件。' }) {
+export function createMessageDispatcher({ answer, reply, beginResponse, nextSteps, onSettled = () => {}, command = () => undefined, react = async () => {}, removeReaction = async () => {}, log = () => {}, getTools = () => 'none', sleep = defaultSleep, mediaErrorText = () => undefined, unsupportedText = '未找到可处理的文字或附件。' }) {
   const seen = new Map();
   const queues = new Map();
   let closed = false;
@@ -9,8 +9,8 @@ export function createMessageDispatcher({ answer, reply, beginResponse, onSettle
     /** @param {import('../contracts/index.d.ts').GatewayMessage | null} m */
     accept(m, { commandName, executeCommand } = {}) {
       if (closed) return;
-      if (!m || seen.has(m.id)) return;
-      seen.set(m.id, Date.now());
+      if (!m || seen.has(m.dispatchId || m.id)) return;
+      seen.set(m.dispatchId || m.id, Date.now());
       if (seen.size > 10000) seen.delete(seen.keys().next().value);
       log('message_received');
       const reaction = Promise.resolve().then(() => react(m)).catch(() => log('reaction_failed'));
@@ -37,6 +37,9 @@ export function createMessageDispatcher({ answer, reply, beginResponse, onSettle
           if (progress) await progress.finish(output);
           else await reply(m, output);
           log('message_replied');
+          if (!commandName && m.debugSleepMs === undefined && !m.debugLabel && progress?.canSuggest !== false) {
+            await nextSteps?.offer(m, output, progress?.nextSteps);
+          }
         } catch (error) {
           const reason = error?.code;
           log(reason === 'ANSWER_TIMEOUT' ? 'message_timed_out' : reason === 'ANSWER_ABORTED' ? 'message_aborted' : 'message_failed');

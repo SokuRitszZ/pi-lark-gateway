@@ -35,6 +35,21 @@ function fixture() {
   const displayed = id => { const card = messages.get(id); return card.type === 'card' ? entities.get(card.data.card_id) : card; };
   return { transport, client, calls, logs, fail, displayed, advance: ms => { time += ms; } };
 }
+test('Lark next steps update the same terminal CardKit entity after stream cleanup and remove buttons on selection', async () => {
+  const f = fixture();
+  const response = await createCardResponse({ userId: 'ou_user' }, { createCardStream: () => f.transport }, () => {});
+  await response.finish('最终结果');
+  assert.equal(response.canSuggest, true);
+  const view = { id: 'choice-id', options: [{ title: '检查', detail: '只检查，不修改。' }] };
+  assert.equal(await response.nextSteps(view), 'message-1');
+  let shown = f.displayed('message-1'); assert.ok(JSON.stringify(shown).includes('最终结果'));
+  assert.equal(shown.body.elements.filter(e => e.tag === 'button').length, 1);
+  await response.nextSteps({ ...view, selectedIndex: 0 }); shown = f.displayed('message-1');
+  assert.equal(shown.body.elements.filter(e => e.tag === 'button').length, 0);
+  assert.ok(JSON.stringify(shown).includes('✅ 已选择：检查'));
+  assert.equal(f.calls.filter(c => c.kind === 'send').length, 1);
+  assert.equal(f.calls.filter(c => c.kind === 'legacy').length, 0);
+});
 const card = (text, state = 'thinking', title = '标题') => responseCard(title, text, state, 'run');
 const images = value => value?.tag === 'img' ? [value]
   : value && typeof value === 'object' ? Object.values(value).flatMap(images) : [];

@@ -6,7 +6,7 @@ export function createResponses({ transport, controls, active, byMessage, log, i
   return async message => {
     const handle = controls.create(message), timeline = createTimeline();
     const keyboard = [[{ text: '停止', callback_data: `s:${handle.id}` }]];
-    let sent;
+    let sent, finalSnapshot, finalState;
     try { sent = await transport.sendText(message.target, progressCard(), keyboard); }
     catch (error) { handle.close(); throw error; }
     const cardId = messageKey(message.chatId, sent.message_id);
@@ -23,6 +23,8 @@ export function createResponses({ transport, controls, active, byMessage, log, i
       }, interval);
     };
     return {
+      get canSuggest() { return finalState === 'complete'; },
+      nextSteps: typeof transport.presentNextSteps === 'function' ? view => transport.presentNextSteps(message.target, finalSnapshot, view) : undefined,
       event(event) {
         // Only names/statuses for tools, never operation arguments or raw results.
         const visible = event.type === 'tool_execution_start'
@@ -40,7 +42,8 @@ export function createResponses({ transport, controls, active, byMessage, log, i
         final = true; closed = true; clearTimeout(timer);
         await inFlight;
         // Known first message plus bounded continuation pages. Never blindly resend after failure.
-        await transport.finalize(message.target, sent.message_id, text, { state: responseState(text, options, handle.stopped) });
+        finalState = responseState(text, options, handle.stopped);
+        finalSnapshot = await transport.finalize(message.target, sent.message_id, text, { state: finalState });
       },
       async stop() {
         closed = true; clearTimeout(timer); await inFlight; handle.close();

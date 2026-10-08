@@ -1,17 +1,19 @@
 import { isAdmin } from '../../core/access/index.js';
 import { transformDebugMessage } from './debug.js';
 import { normalizeMessage, normalizeCallback } from './messages.js';
-export function createHandler({ getState, isClosed, allowed, tools, approvals, controls, dispatcher, transport, active, byMessage, track, restartCommand, log }) {
+export function createHandler({ getState, isClosed, allowed, tools, approvals, controls, dispatcher, transport, active, byMessage, track, restartCommand, nextSteps, log }) {
   const pending = new Map(), seen = new Set();
   let count = 0, windowAt = Date.now();
   const accept = (m, options) => {
-    if (seen.has(m.id)) return;
-    if (pending.size >= 10 || [...pending.values()].filter(key => key === m.key).length >= 3) { log('tg_busy'); return; }
-    seen.add(m.id); if (seen.size > 10000) seen.delete(seen.values().next().value);
-    pending.set(m.id, m.key); dispatcher.accept(m, options);
+    const id = m.dispatchId || m.id;
+    if (isClosed() || !allowed(m) || seen.has(id)) return false;
+    if (pending.size >= 10 || [...pending.values()].filter(key => key === m.key).length >= 3) { log('tg_busy'); return false; }
+    seen.add(id); if (seen.size > 10000) seen.delete(seen.values().next().value);
+    pending.set(id, m.key); dispatcher.accept(m, options); return true;
   };
   return {
-    settled: m => pending.delete(m.id),
+    accept,
+    settled: m => pending.delete(m.dispatchId || m.id),
     handle(update, bot) {
       if (isClosed()) return;
       const { config } = getState();
@@ -21,7 +23,8 @@ export function createHandler({ getState, isClosed, allowed, tools, approvals, c
       if (++count > 100 && !privileged) { log('tg_rate_limited'); return; }
       const callback = normalizeCallback(update);
       if (callback) {
-        const result = callback.value.kind === 'access_approval' ? approvals.handle(callback) : controls.handle(callback);
+        const result = callback.value.kind === 'next_step' ? nextSteps.handle(callback)
+          : callback.value.kind === 'access_approval' ? approvals.handle(callback) : controls.handle(callback);
         track(transport.answerCallback(callback.id, result.content)); return;
       }
       let m = normalizeMessage(update, bot); if (!m) return;

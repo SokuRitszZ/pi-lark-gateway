@@ -40,6 +40,9 @@ export interface PIGateway {
  */
 export interface GatewayMessage {
   id: string;
+  /** Trusted business-layer logical request ID; never substitutes for a platform-native ID. */
+  dispatchId?: string;
+  nextStep?: { id: string; index: number; sourceMessageId: string };
   key: string;
   text: string;
   chatId: string;
@@ -53,6 +56,13 @@ export interface GatewayMessage {
   debugSleepMs?: number;
 }
 
+export interface NextStepsView {
+  id: string;
+  options: readonly { title: string; detail: string }[];
+  selectedIndex?: number;
+  unavailable?: boolean;
+}
+
 /** The dispatcher does not interpret event payloads or render platform UI. */
 export interface GatewayResponse {
   event?(event: unknown): void;
@@ -60,6 +70,9 @@ export interface GatewayResponse {
   stop(): Promise<void>;
   onSession?(session: unknown | null): void;
   summarizeIntent?: boolean;
+  readonly canSuggest?: boolean;
+  /** Render/update the response and return its exact callback message binding. */
+  nextSteps?(view: NextStepsView): Promise<string>;
   appendImage?(image: unknown, options?: { isActive: () => boolean }): Promise<string>;
 }
 
