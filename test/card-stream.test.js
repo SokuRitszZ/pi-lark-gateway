@@ -40,12 +40,17 @@ test('Lark next steps update the same terminal CardKit entity after stream clean
   const response = await createCardResponse({ userId: 'ou_user' }, { createCardStream: () => f.transport }, () => {});
   await response.finish('最终结果');
   assert.equal(response.canSuggest, true);
-  const view = { id: 'choice-id', options: [{ title: '检查', detail: '只检查，不修改。' }] };
+  const view = { id: 'choice-id', options: Array.from({ length: 4 }, (_, i) => ({ title: i ? `选项${i}` : '检查', detail: '只检查，不修改。' })) };
   assert.equal(await response.nextSteps(view), 'message-1');
   let shown = f.displayed('message-1'); assert.ok(JSON.stringify(shown).includes('最终结果'));
-  assert.equal(shown.body.elements.filter(e => e.tag === 'button').length, 1);
+  const row = shown.body.elements.at(-1);
+  assert.equal(row.tag, 'column_set'); assert.equal(row.columns.length, 4);
+  row.columns.forEach((column, index) => {
+    assert.equal(column.width, 'weighted'); assert.equal(column.elements[0].tag, 'button');
+    assert.equal(column.elements[0].behaviors[0].value.index, index);
+  });
   await response.nextSteps({ ...view, selectedIndex: 0 }); shown = f.displayed('message-1');
-  assert.equal(shown.body.elements.filter(e => e.tag === 'button').length, 0);
+  assert.equal(shown.body.elements.some(e => e.tag === 'column_set' || e.tag === 'button'), false);
   assert.ok(JSON.stringify(shown).includes('✅ 已选择：检查'));
   assert.equal(f.calls.filter(c => c.kind === 'send').length, 1);
   assert.equal(f.calls.filter(c => c.kind === 'legacy').length, 0);

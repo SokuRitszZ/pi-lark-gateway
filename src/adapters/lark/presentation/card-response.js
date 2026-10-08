@@ -45,8 +45,12 @@ export async function createCardResponse(message, replies, log, controls) {
       if (!finalCard || state !== 'success') throw new Error('next_steps_response_not_finished');
       const decorate = base => ({ ...base, body: { ...base.body, elements: [...base.body.elements,
         { tag: 'hr' }, { tag: 'markdown', content: nextStepsText(view) },
-        ...(view.selectedIndex === undefined ? view.options.map((option, index) => ({ tag: 'button', type: 'default',
-          text: { tag: 'plain_text', content: option.title }, behaviors: [{ type: 'callback', value: { kind: 'next_step', id: view.id, index } }] })) : []),
+        ...(view.selectedIndex === undefined ? [{ tag: 'column_set', flex_mode: 'none', horizontal_spacing: 'small',
+          columns: view.options.map((option, index) => ({ tag: 'column', width: 'weighted', weight: 1,
+            elements: [{ tag: 'button', type: 'default', text: { tag: 'plain_text', content: option.title },
+              behaviors: [{ type: 'callback', value: { kind: 'next_step', id: view.id, index } }] }],
+          })),
+        }] : []),
       ] } });
       if (!suggestionBase) {
         if (view.selectedIndex !== undefined) throw new Error('next_steps_missing_message');

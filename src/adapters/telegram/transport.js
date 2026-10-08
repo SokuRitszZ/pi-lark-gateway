@@ -78,7 +78,7 @@ export function createTransport(config, secret, { log = () => {}, onFailure = ()
       const prefix = snapshot.standalone ? '' : snapshot.page.text + '\n\n────────────\n';
       const formatted = { text: prefix + details.text, entities: [ ...(snapshot.standalone ? [] : snapshot.page.entities),
         ...details.entities.map(e => ({ ...e, offset: e.offset + prefix.length })) ] };
-      const keyboard = view.selectedIndex === undefined ? view.options.map((o, i) => [{ text: o.title, callback_data: `n:${view.id}:${i}` }]) : [];
+      const keyboard = view.selectedIndex === undefined ? [view.options.map((o, i) => ({ text: o.title, callback_data: `n:${view.id}:${i}` }))] : [];
       if (!snapshot.suggestionId) {
         if (view.selectedIndex !== undefined) throw new Error('next_steps_missing_message');
         snapshot.suggestionId = snapshot.standalone ? (await api.sendFormatted(target, formatted, keyboard)).message_id : snapshot.id;
